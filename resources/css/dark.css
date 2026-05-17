@@ -1,0 +1,239 @@
+/* @name: 暗色风格 */
+/* @description: 深色背景+浅色文字，适合夜间阅读 */
+/* @order: 3 */
+/* @default: false */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-size: 100%;
+    line-height: 1.8;
+    color: #d0d0d0;
+    background: #1a1a1a;
+    margin: 0;
+    padding: 2.5px;
+    font-family: "PingFang SC", "Microsoft YaHei", serif;
+}
+
+.container {
+    max-width: 100%;
+    margin: 0 auto;
+    background: #222222;
+    padding: 0rem;
+}
+
+.article-title {
+    font-size: 2.2em;
+    font-weight: bold;
+    text-align: center;
+    margin: 0.5em 0 0.3em;
+    color: #e8e8e8;
+    line-height: 1.3;
+    border-bottom: 1px solid #444444;
+    padding-bottom: 0.3em;
+}
+
+/*
+.article-subtitle {
+    font-size: 1.1em;
+    text-align: center;
+    color: #999999;
+    margin: 0 0 1.5em 0;
+    font-style: normal;
+    border-bottom: 1px solid #333333;
+    padding-bottom: 0.5em;
+}
+*/
+
+.article-subtitle {
+    font-size: 1.1em;
+    text-align: center;
+    color: #999999;
+    margin: 0.3em 0;
+    border: none;          /* ★ 无边框 */
+    padding: 0;
+}
+
+.article-author {
+    font-size: 0.85em;
+    text-align: right;
+    color: #888;
+    margin: 0 0 0.3em 0;
+    padding-right: 1em;  /* ★ 让内容离右边边框有1em的距离 */
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+
+h1, h2, h3, h4, h5, h6 {
+    font-weight: 600;
+    margin: 1.8em 0 0.8em;
+    color: #e0e0e0;
+    line-height: 1.3;
+}
+
+h1 {
+    font-size: 1.7em;
+    border-bottom: 2px solid {primary};
+    padding-bottom: 0.4em;
+    color: #f0f0f0;
+}
+
+h2 {
+    font-size: 1.4em;
+    border-left: 3px solid {primary};
+    padding-left: 0.5em;
+    color: #cccccc;
+}
+
+h3 {
+    font-size: 1.2em;
+    color: #bbbbbb;
+}
+
+p {
+    margin: 0.8em 0;
+    text-align: justify;
+    text-indent: 2em;
+    color: #d0d0d0;
+}
+
+p.no-indent {
+    text-indent: 0;
+}
+
+li p {
+    text-indent: 0;
+    margin: 0.3em 0;
+}
+
+ul, ol {
+    margin: 0.8em 0;
+    padding-left: 1.4em;
+    color: #d0d0d0;
+}
+
+li {
+    margin-bottom: 0.3em;
+}
+
+code {
+    font-family: "Fira Code", Consolas, monospace;
+    background: #333333;
+    padding: 0.2em 0.4em;
+    border-radius: 3px;
+    font-size: 0.9em;
+    color: #ff6b6b;
+    border: 1px solid #444444;
+}
+
+pre {
+    background: #2a2a2a;
+    border-left: 3px solid {primary};
+    padding: 0.8em 1em;
+    margin: 1em 0;
+    overflow-x: auto;
+    border-radius: 0 4px 4px 0;
+    font-size: 0.9em;
+    color: #d0d0d0;
+    border: 1px solid #333333;
+}
+
+pre code {
+    background: none;
+    padding: 0;
+    color: inherit;
+    border: none;
+}
+
+blockquote {
+    border-left: 3px solid #555555;
+    margin: 1em 0;
+    padding-left: 1em;
+    color: #aaaaaa;
+    font-style: italic;
+}
+
+blockquote p {
+    text-indent: 2em;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.2em 0;
+}
+
+th, td {
+    border: 1px solid #444444;
+    padding: 6px 10px;
+    text-align: left;
+    color: #d0d0d0;
+}
+
+th {
+    background: {primary};
+    color: #ffffff;
+    font-weight: bold;
+}
+
+img {
+    display: block;
+    margin: 1.2em auto;
+    max-width: 100%;
+    height: auto;
+}
+
+.mermaid-container {
+    margin: 1.2em 0;
+    text-align: center;
+}
+
+.mermaid-img {
+    max-width: 100%;
+    height: auto;
+    border: 1px solid #444444;
+}
+
+math {
+    font-family: "Latin Modern Math", "STIX Two Math", "Cambria Math", serif;
+    font-size: 1.05em;
+    color: #d0d0d0;
+}
+
+@media print {
+    body {
+        background: white;
+        padding: 0;
+        color: #000000;
+    }
+    .container {
+        padding: 0;
+        background: white;
+    }
+}
+
+@media (max-width: 768px) {
+    .container {
+        padding: 0.3rem;
+    }
+    h1 {
+        font-size: 1.5em;
+    }
+    h2 {
+        font-size: 1.3em;
+    }
+    pre {
+        font-size: 0.8em;
+    }
+    p {
+        text-indent: 1.5em;
+    }
+    .article-title {
+        font-size: 1.8em;
+    }
+}

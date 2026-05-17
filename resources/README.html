@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EPUB 工具箱 v1.14.3 — 功能文档</title>
+<style>
+  :root {
+    --primary: #3498db;
+    --primary-dark: #2980b9;
+    --success: #27ae60;
+    --warning: #e67e22;
+    --danger: #e74c3c;
+    --bg: #f8f9fa;
+    --card-bg: #ffffff;
+    --text: #2c3e50;
+    --text-secondary: #6c757d;
+    --border: #dee2e6;
+    --sidebar-width: 220px;
+    --radius: 8px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    display: flex; min-height: 100vh;
+  }
+
+  .sidebar {
+    width: var(--sidebar-width); min-width: var(--sidebar-width);
+    background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+    color: #a0b4cc; display: flex; flex-direction: column;
+    position: fixed; top: 0; left: 0; bottom: 0; z-index: 200; overflow-y: auto;
+  }
+  .sidebar-nav { flex: 1; padding: 0; margin-top: 120px; }
+  .sidebar-nav button {
+    display: block; width: 100%; text-align: left;
+    background: none; border: none; color: #c0c8d4;
+    padding: 13px 20px; font-size: 0.92em; cursor: pointer;
+    transition: all 0.25s ease; border-left: 3px solid transparent;
+    font-family: inherit; letter-spacing: 0.5px;
+    margin: 2px 8px; border-radius: 6px; width: calc(100% - 16px);
+  }
+  .sidebar-nav button:hover {
+    background: linear-gradient(90deg, rgba(52,152,219,0.3) 0%, rgba(52,152,219,0.05) 100%);
+    color: #fff; border-left-color: #5dade2;
+  }
+  .sidebar-nav button.active {
+    background: linear-gradient(90deg, rgba(52,152,219,0.45) 0%, rgba(255,255,255,0.08) 100%);
+    color: #fff; border-left-color: var(--primary); font-weight: bold;
+    box-shadow: inset 0 0 16px rgba(52,152,219,0.12);
+  }
+  .sidebar-footer {
+    padding: 12px 16px; border-top: 1px solid rgba(255,255,255,0.1);
+    font-size: 0.75em; text-align: center;
+  }
+
+  .main-content { margin-left: var(--sidebar-width); padding-top: 120px; flex: 1; min-width: 0; }
+
+  header {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    color: #fff; padding: 24px 30px; text-align: center;
+    position: fixed; top: 0; left: var(--sidebar-width); right: 0; z-index: 300;
+    height: 120px; display: flex; flex-direction: column; justify-content: center;
+  }
+  header h1 { font-size: 1.8em; margin-bottom: 4px; }
+  header p { color: #a0b4cc; font-size: 0.95em; }
+  .badges { margin-top: 8px; display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
+  .badge { display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 0.85em; font-weight: bold; }
+  .badge-python { background: #306998; color: #ffe873; }
+  .badge-pyqt { background: #41cd52; color: #fff; }
+  .badge-version { background: var(--primary); color: #fff; }
+  .badge-license { background: #f1c40f; color: #333; }
+
+  .tab-content { display: none; padding: 30px; max-width: 1100px; }
+  .tab-content.active { display: block; }
+
+  .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; margin-bottom: 20px; }
+  .card h3 { border-left: 4px solid var(--primary); padding-left: 12px; margin-bottom: 14px; }
+  .card h4 { color: var(--primary); margin: 16px 0 8px; }
+  table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+  th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+  th { background: #e9ecef; font-weight: bold; }
+  tr:nth-child(even) { background: #f8f9fa; }
+  .arch-diagram { background: #1a1a2e; border-radius: var(--radius); padding: 20px 24px; font-family: "Consolas", "Fira Code", monospace; font-size: 0.82em; line-height: 1.7; color: #a0b4cc; overflow-x: auto; }
+  kbd { background: #e9ecef; border: 1px solid #ccc; border-radius: 4px; padding: 2px 6px; font-family: "Consolas", monospace; font-size: 0.9em; }
+  .version-tag { display: inline-block; background: var(--success); color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 0.8em; margin-left: 6px; }
+  .feature-list { list-style: none; padding: 0; }
+  .feature-list li { padding: 5px 0; border-bottom: 1px dotted var(--border); }
+  .feature-list li:last-child { border-bottom: none; }
+  .feature-list li::before { content: "▸ "; color: var(--primary); }
+
+  @media (max-width: 768px) {
+    .sidebar { width: 180px; min-width: 180px; }
+    .sidebar-nav button { padding: 10px 14px; font-size: 0.8em; }
+    .main-content { margin-left: 180px; }
+    header { left: 180px; }
+    header h1 { font-size: 1.5em; }
+    table { font-size: 0.85em; }
+  }
+</style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <nav class="sidebar-nav">
+    <button class="active" onclick="switchTab(event, 'tab-overview')">📊 概览</button>
+    <button onclick="switchTab(event, 'tab-workflow')">🔄 组合工作流</button>
+    <button onclick="switchTab(event, 'tab-repair')">📝 MD公式修复</button>
+    <button onclick="switchTab(event, 'tab-md2epub')">📖 MD转EPUB</button>
+    <button onclick="switchTab(event, 'tab-epub2pdf')">📄 EPUB转PDF</button>
+    <button onclick="switchTab(event, 'tab-architecture')">🏗️ 项目架构</button>
+    <button onclick="switchTab(event, 'tab-quickref')">⚡ 快速参考</button>
+  </nav>
+  <div class="sidebar-footer">© 2026 YQJ · MIT License</div>
+</aside>
+
+<div class="main-content">
+
+<header>
+  <h1>📚 EPUB 工具箱 v1.14.3</h1>
+  <p>集成 MD公式修复、MD转EPUB、EPUB转PDF 和组合工作流四大功能的电子书处理工具</p>
+  <div class="badges">
+    <span class="badge badge-python">Python 3.8+</span>
+    <span class="badge badge-pyqt">PyQt6 6.4+</span>
+    <span class="badge badge-license">MIT License</span>
+    <span class="badge badge-version">v1.14.3</span>
+  </div>
+</header>
+
+<!-- ==================== 概览 ==================== -->
+<div id="tab-overview" class="tab-content active">
+  <div class="card">
+    <h3>🎯 功能概览</h3>
+    <table>
+      <tr><th>功能模块</th><th>输入</th><th>输出</th><th>核心能力</th></tr>
+      <tr><td>🔄 组合工作流</td><td>.md</td><td>.epub / .pdf</td><td>三种模式自动编排，流水线并行，📊可视化监视面板，PDF页码</td></tr>
+      <tr><td>📝 MD公式修复</td><td>.md</td><td>_fixed.md</td><td>16项可配置修复，4套预设方案，并排对比预览</td></tr>
+      <tr><td>📖 MD转EPUB</td><td>.md</td><td>.epub</td><td>3套CSS模板 + 10种主题色，YAML标题，Mermaid图表</td></tr>
+      <tr><td>📄 EPUB转PDF</td><td>.epub</td><td>.pdf</td><td>4种页边距预设，显示页码，完成后打开各产物目录</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>🌐 全局特性</h3>
+    <table>
+      <tr><th>特性</th><th>说明</th></tr>
+      <tr><td>主题</td><td>6套UI配色方案（浅色/深色/蓝/绿/橙/紫）</td></tr>
+      <tr><td>拖拽导入</td><td>热区扩大至整个 QGroupBox，支持文件夹递归</td></tr>
+      <tr><td>粘贴导入</td><td>Ctrl+V 从剪贴板提取文件路径</td></tr>
+      <tr><td>系统托盘</td><td>关闭时隐藏到托盘，Ctrl+Shift+K 全局热键唤醒</td></tr>
+      <tr><td>多实例控制</td><td>共享内存计数，限制最大实例数</td></tr>
+      <tr><td>依赖管理</td><td>GUI 界面一键安装/更新 Pandoc、Calibre、Node.js、Mermaid CLI</td></tr>
+      <tr><td>优雅关闭</td><td>等待线程结束 + 超时强制终止，清理临时文件</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ==================== 组合工作流 ==================== -->
+<div id="tab-workflow" class="tab-content">
+  <div class="card">
+    <h3>🔄 三种工作流模式</h3>
+    <table>
+      <tr><th>模式</th><th>步骤</th><th>输出</th><th>适用场景</th></tr>
+      <tr><td>修复+转换</td><td>①MD修复 ②MD转EPUB</td><td>.epub</td><td>博客→电子书</td></tr>
+      <tr><td>转换+导出</td><td>①MD转EPUB ②EPUB转PDF</td><td>.pdf</td><td>已有正确公式的文档</td></tr>
+      <tr><td>全流程</td><td>①MD修复 ②MD转EPUB ③EPUB转PDF</td><td>.pdf</td><td>发布论文/报告</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>📊 可视化监视面板 <span class="version-tag">v1.14.3 稳定版</span></h3>
+    <h4>核心改进</h4>
+    <ul class="feature-list">
+      <li>统一流水线状态管理 — pipeline_states 以原始 .md 绝对路径为唯一 key</li>
+      <li>YAML 重命名兼容 — Worker 信号始终携带原始文件路径</li>
+      <li>主动状态拉取 — 面板打开时从 _running_results + results 同步</li>
+      <li>中间产物清理可视化 — 已清理步骤自动显示淡绿色</li>
+      <li>智能关闭弹窗 — 区分面板自启任务与主界面观察者模式</li>
+      <li>250ms 高频轮询 + pipeline_state.py 统一路径解析</li>
+    </ul>
+    <h4>功能清单</h4>
+    <table>
+      <tr><th>功能</th><th>操作</th></tr>
+      <tr><td>实时状态同步</td><td>主界面执行任务时，面板实时显示每个步骤进度</td></tr>
+      <tr><td>双工执行</td><td>支持主界面启动后查看 + 面板独立启动</td></tr>
+      <tr><td>行独立修复配置</td><td>⚙️ 每行可覆盖全局配置</td></tr>
+      <tr><td>产物预览</td><td>👁 调用外部应用打开产物</td></tr>
+      <tr><td>修复预览</td><td>右键 → 🔍 进入配置调试模式</td></tr>
+      <tr><td>配置闭环</td><td>📋 配置到独立设置 → 独立修复设置 → 自动重新预检</td></tr>
+      <tr><td>步骤回滚</td><td>🗑 删除单个步骤产物，不影响下游</td></tr>
+      <tr><td>清理中间文件</td><td>🧹 删除过程文件，保留最终结果，面板自动变淡绿色</td></tr>
+      <tr><td>文件管理</td><td>拖入/Ctrl+V/右键删除/Ctrl+Delete 批量删除</td></tr>
+      <tr><td>日志面板</td><td>可折叠/保存/清空，区分 [Worker]/[面板] 来源</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>🔧 实现原理</h3>
+    <h4>流水线并行架构</h4>
+    <div class="arch-diagram">
+<pre>文件队列 → [步骤1: 修复] → Queue → [步骤2: 转EPUB] → Queue → [步骤3: 转PDF]
+    ↑          ↑ n workers          ↑ n workers          ↑ n workers
+  file1     file1修复中          file1转EPUB中        file1转PDF中
+  file2     file2修复中          file2等待             file2等待</pre>
+    </div>
+    <p style="margin-top:12px">哨兵对象：<code>_SKIP_SENTINEL</code>（失败传递）/ <code>_STOP_SENTINEL</code>（结束信号）</p>
+  </div>
+</div>
+
+<!-- ==================== MD公式修复 ==================== -->
+<div id="tab-repair" class="tab-content">
+  <div class="card">
+    <h3>📝 16项可配置修复</h3>
+    <p><strong>核心设计原则：不勾选 = 不修复。</strong>默认所有功能关闭，用户完全掌控。</p>
+  </div>
+
+  <div class="card">
+    <h3>🟢 格式与语法修复（低风险，推荐开启）</h3>
+    <table>
+      <tr><th>功能</th><th>触发条件</th><th>修复动作</th></tr>
+      <tr><td>🧹 多余换行清理</td><td>3+ 连续空行</td><td>简化为 2 空行</td></tr>
+      <tr><td>📏 行内公式后添加空格</td><td>$...$ 后紧跟中文</td><td>插入空格</td></tr>
+      <tr><td>↗️ 上下标范围修正</td><td>^ 或 _ 后多字符未包裹</td><td>添加 {}</td></tr>
+      <tr><td>📝 函数名正体化</td><td>未加 \ 的函数名</td><td>添加 \ 前缀</td></tr>
+      <tr><td>🧮 矩阵末尾换行移除</td><td>\end 前多余 \\</td><td>移除</td></tr>
+      <tr><td>🔍 括号配对检查</td><td>\left/\right 不配对</td><td>自动补全</td></tr>
+      <tr><td>🔤 编码问题修复</td><td>\x00、\r\n 等</td><td>替换+转义</td></tr>
+      <tr><td>💲 美元符号转义</td><td>孤立 $</td><td>转义为 \$</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>📋 4套预设方案</h3>
+    <table>
+      <tr><th>方案</th><th>特点</th><th>适用</th></tr>
+      <tr><td>🟢 安全模式</td><td>仅8项低风险</td><td>重要文档</td></tr>
+      <tr><td>🟡 标准模式</td><td>12项低+中风险</td><td>日常使用</td></tr>
+      <tr><td>🟣 知乎发布</td><td>增强转义+间距</td><td>知乎平台</td></tr>
+      <tr><td>🔵 学术论文</td><td>仅语法修正</td><td>保留语义</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>🔍 预览与调试体系</h3>
+    <table>
+      <tr><th>功能</th><th>触发方式</th><th>说明</th></tr>
+      <tr><td>批量预检摘要</td><td>Ctrl+Shift+L</td><td>多文件弹出摘要表格</td></tr>
+      <tr><td>并排对比预览</td><td>右键→预览</td><td>左右对比，difflib 高亮差异</td></tr>
+      <tr><td>MathJax 渲染</td><td>预览窗口内嵌</td><td>三级离线渲染 + 缩放 + 换行</td></tr>
+      <tr><td>快速调整面板</td><td>预览窗口底部</td><td>累积式，勾选自动生效</td></tr>
+      <tr><td>配置更新</td><td>快速调整→按钮</td><td>一键同步到高级设置</td></tr>
+      <tr><td>清除未勾选项</td><td>快速调整→按钮</td><td>清理面板中未勾选的功能项</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ==================== MD转EPUB ==================== -->
+<div id="tab-md2epub" class="tab-content">
+  <div class="card">
+    <h3>📖 MD转EPUB — 精美排版电子书</h3>
+    <p>基于 Pandoc + 自建 EPUB 打包器（EPUB 3.0 + NCX 兼容 EPUB 2.0）。</p>
+  </div>
+
+  <div class="card">
+    <h3>🎨 CSS 排版风格（外部文件自动发现）</h3>
+    <table>
+      <tr><th>风格</th><th>特点</th><th>适用</th></tr>
+      <tr><td>朴素样式</td><td>白底黑字极简</td><td>Kindle 墨水屏</td></tr>
+      <tr><td>简洁样式</td><td>白色容器+彩色边框</td><td>现代阅读器</td></tr>
+      <tr><td>暗色风格</td><td>深色背景+浅色文字</td><td>夜间阅读</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>✨ 核心特性</h3>
+    <ul class="feature-list">
+      <li>10种主题颜色（蓝/绿/紫/橙/红/青/粉/灰/深色/棕）</li>
+      <li>YAML 标题作为 EPUB 内部标题（title/subtitle/author/date）</li>
+      <li>YAML 标题重命名输出文件</li>
+      <li>Mermaid 图表渲染（可选，需 Node.js + mmdc）</li>
+      <li>图片自动处理（复制 + 去重 + 重名检测）</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ==================== EPUB转PDF ==================== -->
+<div id="tab-epub2pdf" class="tab-content">
+  <div class="card">
+    <h3>📄 EPUB转PDF — 多预设打印输出 + 页码</h3>
+    <p>基于 Calibre <code>ebook-convert</code>。</p>
+  </div>
+
+  <div class="card">
+    <h3>📐 4种页边距预设</h3>
+    <table>
+      <tr><th>预设</th><th>上/下/左/右</th><th>适用</th></tr>
+      <tr><td>极限紧凑</td><td>0/0/0/0</td><td>屏幕阅读</td></tr>
+      <tr><td>左右紧凑</td><td>10/10/0/0</td><td>宽页利用</td></tr>
+      <tr><td>上下紧凑</td><td>0/0/10/10</td><td>长文档</td></tr>
+      <tr><td>对称装订</td><td>10/10/10/10</td><td>打印装订</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>✨ 新增功能 <span class="version-tag">v1.14.3</span></h3>
+    <ul class="feature-list">
+      <li>显示页码：勾选后在 PDF 页面底部显示页码</li>
+      <li>完成后打开各产物目录：多文件夹场景下自动打开所有输出目录</li>
+      <li>确认弹窗提示页码选项</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ==================== 项目架构 ==================== -->
+<div id="tab-architecture" class="tab-content">
+  <div class="card">
+    <h3>🏗️ 整体架构</h3>
+    <div class="arch-diagram">
+<pre>
+┌─────────────────────────────────────────────────────────────┐
+│                        <span style="color:#f1c40f">main.py</span>                          │
+│  主窗口 · 三栏布局 · 导航 · 快捷键 · 托盘 · 优雅退出 · 多实例  │
+├─────────────────────────────────────────────────────────────┤
+│                         <span style="color:#3498db">core/</span>                            │
+│  基类 · 主题 · CSS管理 · 启动动画 · 工具函数 · 通用组件       │
+├─────────────────────────────────────────────────────────────┤
+│                       <span style="color:#27ae60">modules/</span>                          │
+│  工作流 · MD公式修复 · MD转EPUB · EPUB转PDF                  │
+├─────────────────────────────────────────────────────────────┤
+│                      <span style="color:#e67e22">resources/</span>                         │
+│  CSS模板 · MathJax引擎 · 图标                                │
+└─────────────────────────────────────────────────────────────┘
+</pre>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>📂 文件树</h3>
+    <div class="arch-diagram">
+<pre>
+EPUB_TOOLBOX/
+├── <span style="color:#f1c40f">main.py</span>
+├── <span style="color:#3498db">core/</span>
+│   ├── version.py / config_keys.py / base_module.py
+│   ├── theme_manager.py / css_manager.py
+│   ├── splash_manager.py / utils.py
+│   └── components/
+│       ├── file_list.py / log_panel.py
+│       ├── common_dialogs.py / dependency_installer.py
+├── <span style="color:#27ae60">modules/</span>
+│   ├── <span style="color:#27ae60">workflow/</span>
+│   │   ├── module.py / processor.py
+│   │   ├── <span style="color:#e74c3c">pipeline_state.py</span>  ★ v1.14.1新增
+│   │   ├── monitor_panel.py / monitor_worker.py
+│   │   └── monitor_row.py / monitor_row_config.py
+│   ├── md_repair/ / md2epub/ / epub2pdf/
+├── resources/
+│   ├── css/ / mathjax/ / icon.ico / icon.png
+└── tests/ / build_folder.spec
+</pre>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>📡 监视面板同步机制（v1.14.x 重构）</h3>
+    <div class="arch-diagram">
+<pre>
+主界面 WorkflowWorker
+    ├── step_state_changed → 始终携带原始 .md 路径
+    ├── pipeline_states（key = 原始.md 绝对路径）
+    ├── 监视面板 @property 转发 → 实时更新行状态
+    ├── 面板打开时主动拉取 _running_results + results
+    └── _clean_intermediates 发射 completed_cleaned → 面板变淡绿色
+
+<span style="color:#e74c3c">pipeline_state.py</span>
+    ├── resolve_source_file() → 从任意产物路径反推原始 .md
+    └── make_pipeline_key() → 统一 key 生成规则
+</pre>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== 快速参考 ==================== -->
+<div id="tab-quickref" class="tab-content">
+  <div class="card">
+    <h3>⌨️ 快捷键一览</h3>
+    <table>
+      <tr><th>快捷键</th><th>功能</th><th>作用域</th></tr>
+      <tr><td><kbd>Ctrl+0/1/2/3</kbd></td><td>切换模块</td><td>主窗口</td></tr>
+      <tr><td><kbd>Ctrl+Shift+D</kbd></td><td>开始处理</td><td>主窗口</td></tr>
+      <tr><td><kbd>Ctrl+Shift+M</kbd></td><td>打开监视面板</td><td>主窗口</td></tr>
+      <tr><td><kbd>Ctrl+Shift+L</kbd></td><td>批量预检摘要</td><td>主窗口</td></tr>
+      <tr><td><kbd>Ctrl+L</kbd></td><td>显示/隐藏日志面板</td><td>主窗口/面板</td></tr>
+      <tr><td><kbd>Ctrl+Q</kbd></td><td>清空日志</td><td>主窗口</td></tr>
+      <tr><td><kbd>Ctrl+Shift+Q</kbd></td><td>清空文件列表</td><td>主窗口</td></tr>
+      <tr><td><kbd>Ctrl+K</kbd></td><td>切换托盘模式</td><td>主窗口</td></tr>
+      <tr><td><kbd>Ctrl+Shift+K</kbd></td><td>从托盘唤醒</td><td>全局</td></tr>
+      <tr><td><kbd>Ctrl+W</kbd></td><td>退出/关闭预览/关闭面板</td><td>全局</td></tr>
+      <tr><td><kbd>Esc</kbd></td><td>关闭预览/关闭面板</td><td>预览/面板</td></tr>
+      <tr><td><kbd>Delete</kbd></td><td>删除选中文件/行</td><td>主窗口/面板</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>📝 版本历史</h3>
+    <table>
+      <tr><th>版本</th><th>日期</th><th>核心变更</th></tr>
+      <tr><td>v1.14.3</td><td>2026.05.17</td><td>PDF显示页码、完成后打开各产物目录、确认弹窗增强</td></tr>
+      <tr><td>v1.14.2</td><td>2026.05.10</td><td>修复+转换模式回滚、中间产物清理可视化、关闭弹窗优化</td></tr>
+      <tr><td>v1.14.1</td><td>2026.05.10</td><td>监视面板同步重构、pipeline_state.py、配置闭环</td></tr>
+      <tr><td>v1.14.0</td><td>2026.05.09</td><td>监视面板架构重构、配置键常量化</td></tr>
+      <tr><td>v1.13.0</td><td>2026.05.03</td><td>可视化监视面板、CSS外部配置化</td></tr>
+      <tr><td>v1.12.1</td><td>2026.05.01</td><td>统一版本管理、120个单元测试</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>🙏 致谢</h3>
+    <p style="margin-bottom:8px;">
+      <a href="https://pandoc.org/">Pandoc</a> ·
+      <a href="https://calibre-ebook.com/">Calibre</a> ·
+      <a href="https://riverbankcomputing.com/software/pyqt/">PyQt6</a> ·
+      <a href="https://www.mathjax.org/">MathJax</a> ·
+      <a href="https://github.com/boppreh/keyboard">keyboard</a> ·
+      <a href="https://jrsoftware.org/isinfo.php">Inno Setup</a> ·
+      <a href="https://pytest.org/">pytest</a>
+    </p>
+    <p style="color:var(--text-secondary);">MIT License | Copyright © 2026 YQJ</p>
+  </div>
+</div>
+
+</div><!-- /main-content -->
+
+<script>
+function switchTab(event, tabId) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.sidebar-nav button').forEach(btn => btn.classList.remove('active'));
+  document.getElementById(tabId).classList.add('active');
+  event.currentTarget.classList.add('active');
+}
+</script>
+
+</body>
+</html>

@@ -1,0 +1,192 @@
+/* @name: 护眼纸张 */
+/* @description: 米黄色背景+深褐色文字，模拟纸质书籍阅读体验 */
+/* @order: 4 */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-size: 100%;
+    line-height: 1.8;
+    color: #3e2723;
+    background: #f5f0e8;
+    margin: 0;
+    padding: 2.5px;
+    font-family: "PingFang SC", "Microsoft YaHei", serif;
+}
+
+.container {
+    max-width: 900px;
+    margin: 0 auto;
+    background: #faf7f0;
+    padding: 0rem;
+    box-shadow: 0 2px 8px rgba(139, 109, 69, 0.08);
+}
+
+
+.article-title {
+    font-size: 2.2em;
+    font-weight: bold;
+    text-align: center;
+    margin: 0.5em 0 0.3em;
+    color: #000000;
+    line-height: 1.3;
+    /*     
+    border-bottom: 1px solid #cccccc;
+    padding-bottom: 0.3em;
+    */ 
+
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+.article-subtitle {
+    font-size: 1.1em;
+    text-align: center;
+    color: #666;
+    margin: 0.3em 0;
+    border: none;          /* ★ 无边框 */
+    padding: 0;
+}
+
+.article-author {
+    font-size: 0.85em;
+    text-align: right;
+    color: #888;
+    margin: 0 0 0.3em 0;
+    padding-right: 1em;  /* ★ 让内容离右边边框有1em的距离 */
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+h1 {
+    font-size: 1.7em;
+    border-bottom: 2px solid {primary};
+    padding-bottom: 0.4em;
+    color: #4e342e;
+}
+
+h2 {
+    font-size: 1.4em;
+    border-left: 3px solid {primary};
+    padding-left: 0.5em;
+    color: #5d4037;
+}
+
+h3 {
+    font-size: 1.2em;
+    color: #6d4c41;
+}
+
+p {
+    margin: 0.8em 0;
+    text-align: justify;
+    text-indent: 2em;
+}
+
+code {
+    font-family: "Fira Code", Consolas, monospace;
+    background: #ede0d4;
+    padding: 0.2em 0.4em;
+    border-radius: 3px;
+    font-size: 0.9em;
+    color: #8b4513;
+}
+
+pre {
+    background: #3e2723;
+    border-left: 3px solid {primary};
+    padding: 0.8em 1em;
+    margin: 1em 0;
+    overflow-x: auto;
+    border-radius: 0 4px 4px 0;
+    color: #f5f0e8;
+}
+
+pre code {
+    background: none;
+    padding: 0;
+    color: inherit;
+}
+
+blockquote {
+    border-left: 3px solid #d7ccc8;
+    margin: 1em 0;
+    padding-left: 1em;
+    color: #795548;
+    font-style: italic;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.2em 0;
+}
+
+th, td {
+    border: 1px solid #d7ccc8;
+    padding: 6px 10px;
+}
+
+th {
+    background: {primary};
+    color: #ffffff;
+}
+
+img {
+    display: block;
+    margin: 1.2em auto;
+    max-width: 100%;
+    height: auto;
+    border-radius: 4px;
+}
+
+.mermaid-container {
+    margin: 1.2em 0;
+    text-align: center;
+}
+
+.mermaid-img {
+    max-width: 100%;
+    height: auto;
+    border: 1px solid #e0e0e0;
+}
+
+math {
+    font-family: "Latin Modern Math", "STIX Two Math", "Cambria Math", serif;
+    font-size: 1.05em;
+}
+
+@media print {
+    body {
+        background: white;
+        padding: 0;
+    }
+    .container {
+        padding: 0;
+    }
+}
+
+@media (max-width: 768px) {
+    .container {
+        padding: 0.3rem;
+    }
+    h1 {
+        font-size: 1.5em;
+    }
+    h2 {
+        font-size: 1.3em;
+    }
+    pre {
+        font-size: 0.8em;
+    }
+    p {
+        text-indent: 1.5em;
+    }
+    .article-title {
+        font-size: 1.8em;
+    }
+}
