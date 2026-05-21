@@ -19,6 +19,8 @@ __pycache__/
 dist/
 build/
 *.spec
+*.iss
+.gitignore
 
 # 说明文件
 Readme/
