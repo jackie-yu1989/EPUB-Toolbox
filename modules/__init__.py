@@ -10,10 +10,12 @@ from .workflow import WorkflowModule
 from .md_repair import MDRepairModule
 from .md2epub import MD2EPUBModule
 from .epub2pdf import EPUB2PDFModule
+from .epub2docx import EPUB2DOCXModule
 
 __all__ = [
     'WorkflowModule',
     'MDRepairModule',
     'MD2EPUBModule',
     'EPUB2PDFModule',
+    "EPUB2DOCXModule",
 ]

@@ -228,16 +228,21 @@ class ConversionWorker(QThread):
         self.finished_all.emit(self.results)
     
     def _smart_open_output_folders(self):
-        """智能打开输出文件夹
-        
-        根据输出文件夹数量决定打开策略：
-            - 1 个 → 直接打开
-            - 2-3 个 → 全部打开
-            - 4+ 个 → 打开第一个，日志列出其余
-        """
-        output_folders = set(f.parent for f in self.input_files)
+        """智能打开输出文件夹"""
+        # ✅ 修复：基于 self.results 中实际生成的输出文件路径提取目录，并强制 resolve 为绝对路径
+        output_folders = set()
+        for res in self.results:
+            if res.get('status') == 'success' and res.get('output'):
+                output_folders.add(Path(res['output']).resolve().parent)
+
+        # 兜底：如果 results 为空（例如全部失败），使用输入文件的绝对父目录
+        if not output_folders:
+            output_folders = set(f.resolve().parent for f in self.input_files)
+
+        if not output_folders:
+            return
+
         folder_list = list(output_folders)
-        
         if len(folder_list) == 1:
             self._open_folder(folder_list[0])
             self.log_message.emit(
@@ -253,7 +258,7 @@ class ConversionWorker(QThread):
             self._open_folder(folder_list[0])
             self.log_message.emit(
                 f"📂 输出文件分布在 {len(folder_list)} 个不同目录，"
-                f"已打开第一个目录: {folder_list[0]}", 
+                f"已打开第一个目录: {folder_list[0]}",
                 "INFO"
             )
             # 列出前 3 个其他目录
@@ -264,17 +269,19 @@ class ConversionWorker(QThread):
                 )
             else:
                 self.log_message.emit(
-                    f"   其他目录: {', '.join(str(f) for f in folder_list[1:])}", 
+                    f"   其他目录: {', '.join(str(f) for f in folder_list[1:])}",
                     "INFO"
                 )
     
     @staticmethod
     def _open_folder(folder: Path):
-        """跨平台打开文件夹
-        
-        Args:
-            folder: 文件夹路径
-        """
+        """跨平台打开文件夹"""
+        try:
+            # ✅ 终极保险：强制转换为绝对路径，彻底杜绝 Windows explorer 打开“文档”
+            folder = folder.resolve()
+        except Exception:
+            pass
+            
         folder_str = str(folder)
         if sys.platform == 'win32':
             subprocess.run(['explorer', folder_str], shell=True)
@@ -303,7 +310,7 @@ class EPUB2PDFModule(BaseModule):
     
     @property
     def module_icon(self) -> str:
-        return "📄"
+        return "📕"
     
     @property
     def module_description(self) -> str:
@@ -313,6 +320,7 @@ class EPUB2PDFModule(BaseModule):
             "可选显示页码（底部居中浅灰色）。"
             "线程安全Event停止，自适应并行数，多线程并行转换。"
         )
+
     
     @property
     def accepted_extensions(self) -> List[str]:
@@ -933,5 +941,5 @@ class EPUB2PDFModule(BaseModule):
 
 # ==================== 元信息 ====================
 __author__ = "YQJ"
-__version__ = "1.1.1"
-__date__ = "2026.05.17"
+__version__ = "1.1.2"
+__date__ = "2026.05.22"

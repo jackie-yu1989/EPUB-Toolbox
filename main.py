@@ -68,7 +68,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from core.base_module import BaseModule
 from core.theme_manager import ThemeManager
 from core.components import LogPanel, AboutDialog
-from modules import MDRepairModule, MD2EPUBModule, EPUB2PDFModule, WorkflowModule
+from modules import MDRepairModule, MD2EPUBModule, EPUB2PDFModule, WorkflowModule, EPUB2DOCXModule
 from core.splash_manager import SplashManager
 
 # ★ 统一版本信息（单一数据源）
@@ -376,12 +376,16 @@ class EPUBToolboxHub(QMainWindow):
     # ==================== 模块注册 ====================
 
     def _register_modules(self):
-        module_classes = [WorkflowModule, MD2EPUBModule, EPUB2PDFModule, MDRepairModule]
-        
+        module_classes = [
+            WorkflowModule,
+            MD2EPUBModule,
+            EPUB2PDFModule,
+            MDRepairModule,
+            EPUB2DOCXModule
+        ]
         for module_class in module_classes:
             module = module_class()
             self.modules[module.module_id] = module
-            
             module.signals.status_changed.connect(self._on_module_status_changed)
             module.signals.progress_updated.connect(self._on_module_progress_updated)
             module.signals.log_message.connect(self._on_module_log)
@@ -660,7 +664,7 @@ class EPUBToolboxHub(QMainWindow):
         self._module_menu_actions: Dict[str, QAction] = {}
         
         module_ids = list(self.modules.keys())
-        keys = ["Ctrl+0", "Ctrl+1", "Ctrl+2", "Ctrl+3"]
+        keys = ["Ctrl+0", "Ctrl+1", "Ctrl+2", "Ctrl+3", "Ctrl+4"]
         
         for i, module_id in enumerate(module_ids):
             module = self.modules[module_id]
@@ -1016,8 +1020,9 @@ class EPUBToolboxHub(QMainWindow):
             "将清除所有保存的设置，包括：\n"
             "• 窗口布局和日志面板状态\n"
             "• MD公式修复的高级设置方案\n"
-            "• 工作流模块的配置\n\n"
-            "下次启动将恢复默认设置。\n\n是否继续？",
+            "• 工作流模块的配置\n"
+            "• EPUB转Word/PDF 等模块的转换选项与记忆状态\n"
+            "下次启动将恢复默认设置。\n是否继续？",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         )
         if reply != QMessageBox.StandardButton.Yes:
@@ -1201,8 +1206,6 @@ class EPUBToolboxHub(QMainWindow):
     
     def _atexit_cleanup(self):
         pass
-
-
 # ==================== 主入口 ====================
 
 def main():

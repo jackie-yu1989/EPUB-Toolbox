@@ -111,30 +111,23 @@ class AboutDialog(QMessageBox):
         )
         
         self.setInformativeText(
-            "<p>集成 MD公式修复、MD转EPUB、EPUB转PDF 和组合工作流自动编排"
-            "四大功能的综合性电子书处理工具。</p>"
-            
+            "<p>集成 MD公式修复、MD转EPUB、EPUB转PDF、EPUB转Word 和组合工作流自动编排"
+            "五大功能的综合性电子书处理工具。</p>"
             "<p><b>功能模块:</b></p>"
             "<ul>"
             "<li>🔄 <b>组合工作流</b> — 三种模式，流水线并行，分步设置，哨兵对象模式，"
             "📊可视化监视面板（实时同步主界面进度、双工执行、行独立配置+修复预览、步骤回滚、中间文件清理）</li>"
-
             "<li>📝 <b>MD公式修复</b> — 16项可配置修复（不勾选=不修复），批量预检摘要，"
             "并排对比预览+MathJax离线渲染，快速调整面板累积式调试</li>"
-
             "<li>📖 <b>MD转EPUB</b> — 外部CSS自动发现，10种主题颜色，YAML标题，Mermaid图表</li>"
-            
-            "<li>📄 <b>EPUB转PDF</b> — 4种页边距预设，多线程并行转换</li>"
+            "<li>📕 <b>EPUB转PDF</b> — 4种页边距预设，自定义字号/页码，多线程并行转换</li>"
+            "<li>📄 <b>EPUB转Word</b> — 扁平化页面尺寸单选，软回车(^l)自动转硬段落(^p)，多线程并行</li>"
             "</ul>"
-            
             "<p><b>工具链:</b> 帮助菜单 → 依赖工具管理 → 一键安装 Pandoc/Calibre/Node.js/Mermaid CLI，"
             "支持检测已安装、版本更新、卸载说明</p>"
-            
             "<p><b>全局:</b> 6套主题，拖拽+粘贴导入，系统托盘，Ctrl+Shift+K唤醒，快捷键一览，"
-            "启动时自动清理残留临时目录</p>"
-            
+            "启动时自动清理残留临时目录，智能精准打开输出目录（彻底解决Windows回退'文档'Bug）</p>"
             "<p><b>技术栈:</b> PyQt6 + Pandoc + Calibre + MathJax v3（完整es5离线） + keyboard + winget</p>"
-
             "<p><b>许可证:</b> MIT</p>"
         )
 

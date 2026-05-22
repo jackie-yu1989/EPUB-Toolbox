@@ -162,9 +162,9 @@ class ConversionWorker(QThread):
         
         for md_file in self.input_files:
             if self.output_mode == "custom" and self.output_dir:
-                output_dir_path = self.output_dir
+                output_dir_path = Path(self.output_dir).resolve()
             else:
-                output_dir_path = md_file.parent
+                output_dir_path = md_file.resolve().parent
             
             output_dir_path.mkdir(parents=True, exist_ok=True)
             
@@ -358,31 +358,40 @@ class ConversionWorker(QThread):
     
     def _smart_open_output_folders(self):
         """智能打开输出文件夹"""
-        output_folders = set(f.parent for f in self.input_files)
+        output_folders = set()
+        for res in self.results:
+            if res.get('status') == 'success' and res.get('output'):
+                # ✅ 强制 resolve，杜绝相对路径
+                output_folders.add(Path(res['output']).resolve().parent)
+
+        # ✅ 兜底：如果 results 为空（例如全部失败），使用输入文件的绝对父目录
+        if not output_folders:
+            output_folders = set(f.resolve().parent for f in self.input_files)
+            
+        if not output_folders:
+            return
+
         folder_list = list(output_folders)
-        
         if len(folder_list) == 1:
             self._open_folder(folder_list[0])
-            self.log_message.emit(
-                f"📂 已打开输出目录: {folder_list[0]}", "INFO"
-            )
+            self.log_message.emit(f"📂 已打开输出目录: {folder_list[0]}", "INFO")
         elif len(folder_list) <= 3:
             for folder in folder_list:
                 self._open_folder(folder)
-            self.log_message.emit(
-                f"📂 已打开 {len(folder_list)} 个输出目录", "INFO"
-            )
+            self.log_message.emit(f"📂 已打开 {len(folder_list)} 个输出目录", "INFO")
         else:
             self._open_folder(folder_list[0])
-            self.log_message.emit(
-                f"📂 输出文件分布在 {len(folder_list)} 个不同目录，"
-                f"已打开第一个目录: {folder_list[0]}", 
-                "INFO"
-            )
+            self.log_message.emit(f"📂 输出文件分布在 {len(folder_list)} 个不同目录，已打开第一个目录: {folder_list[0]}", "INFO")
     
     @staticmethod
     def _open_folder(folder: Path):
         """跨平台打开文件夹"""
+        try:
+            # ✅ 终极保险：强制转换为绝对路径，防止 Windows explorer 打开“文档”
+            folder = folder.resolve()
+        except Exception:
+            pass
+            
         folder_str = str(folder)
         if sys.platform == 'win32':
             subprocess.run(['explorer', folder_str], shell=True)
@@ -1066,5 +1075,5 @@ class MD2EPUBModule(BaseModule):
 
 # ==================== 元信息 ====================
 __author__ = "YQJ"
-__version__ = "1.3.0"
-__date__ = "2026.05.17"
+__version__ = "1.3.1"
+__date__ = "2026.05.22"

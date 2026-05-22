@@ -3,31 +3,20 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>EPUB 工具箱 v1.14.3 — 功能文档</title>
+<title>EPUB 工具箱 v1.15.0 — 功能文档</title>
 <style>
   :root {
-    --primary: #3498db;
-    --primary-dark: #2980b9;
-    --success: #27ae60;
-    --warning: #e67e22;
-    --danger: #e74c3c;
-    --bg: #f8f9fa;
-    --card-bg: #ffffff;
-    --text: #2c3e50;
-    --text-secondary: #6c757d;
-    --border: #dee2e6;
-    --sidebar-width: 220px;
-    --radius: 8px;
+    --primary: #3498db; --primary-dark: #2980b9; --success: #27ae60;
+    --warning: #e67e22; --danger: #e74c3c; --bg: #f8f9fa;
+    --card-bg: #ffffff; --text: #2c3e50; --text-secondary: #6c757d;
+    --border: #dee2e6; --sidebar-width: 220px; --radius: 8px;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
     font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    line-height: 1.7;
+    background: var(--bg); color: var(--text); line-height: 1.7;
     display: flex; min-height: 100vh;
   }
-
   .sidebar {
     width: var(--sidebar-width); min-width: var(--sidebar-width);
     background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
@@ -52,13 +41,8 @@
     color: #fff; border-left-color: var(--primary); font-weight: bold;
     box-shadow: inset 0 0 16px rgba(52,152,219,0.12);
   }
-  .sidebar-footer {
-    padding: 12px 16px; border-top: 1px solid rgba(255,255,255,0.1);
-    font-size: 0.75em; text-align: center;
-  }
-
+  .sidebar-footer { padding: 12px 16px; border-top: 1px solid rgba(255,255,255,0.1); font-size: 0.75em; text-align: center; }
   .main-content { margin-left: var(--sidebar-width); padding-top: 120px; flex: 1; min-width: 0; }
-
   header {
     background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
     color: #fff; padding: 24px 30px; text-align: center;
@@ -73,10 +57,8 @@
   .badge-pyqt { background: #41cd52; color: #fff; }
   .badge-version { background: var(--primary); color: #fff; }
   .badge-license { background: #f1c40f; color: #333; }
-
   .tab-content { display: none; padding: 30px; max-width: 1100px; }
   .tab-content.active { display: block; }
-
   .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; margin-bottom: 20px; }
   .card h3 { border-left: 4px solid var(--primary); padding-left: 12px; margin-bottom: 14px; }
   .card h4 { color: var(--primary); margin: 16px 0 8px; }
@@ -91,7 +73,13 @@
   .feature-list li { padding: 5px 0; border-bottom: 1px dotted var(--border); }
   .feature-list li:last-child { border-bottom: none; }
   .feature-list li::before { content: "▸ "; color: var(--primary); }
-
+  .code-block { background: #1a1a2e; color: #a0b4cc; border-radius: var(--radius); padding: 16px 20px; font-family: "Consolas", "Fira Code", monospace; font-size: 0.85em; line-height: 1.6; overflow-x: auto; margin: 10px 0; }
+  .code-block .prompt { color: #f1c40f; }
+  .code-block .cmd { color: #5dade2; }
+  .code-block .comment { color: #7f8c8d; }
+  .tip { background: #eafaf1; border-left: 4px solid var(--success); padding: 12px 16px; border-radius: 0 var(--radius) var(--radius) 0; margin: 12px 0; }
+  .warn { background: #fef9e7; border-left: 4px solid var(--warning); padding: 12px 16px; border-radius: 0 var(--radius) var(--radius) 0; margin: 12px 0; }
+  .danger { background: #fdedec; border-left: 4px solid var(--danger); padding: 12px 16px; border-radius: 0 var(--radius) var(--radius) 0; margin: 12px 0; }
   @media (max-width: 768px) {
     .sidebar { width: 180px; min-width: 180px; }
     .sidebar-nav button { padding: 10px 14px; font-size: 0.8em; }
@@ -110,7 +98,8 @@
     <button onclick="switchTab(event, 'tab-workflow')">🔄 组合工作流</button>
     <button onclick="switchTab(event, 'tab-repair')">📝 MD公式修复</button>
     <button onclick="switchTab(event, 'tab-md2epub')">📖 MD转EPUB</button>
-    <button onclick="switchTab(event, 'tab-epub2pdf')">📄 EPUB转PDF</button>
+    <button onclick="switchTab(event, 'tab-epub2pdf')">📕 EPUB转PDF</button>
+    <button onclick="switchTab(event, 'tab-epub2docx')">📄 EPUB转Word</button>
     <button onclick="switchTab(event, 'tab-architecture')">🏗️ 项目架构</button>
     <button onclick="switchTab(event, 'tab-quickref')">⚡ 快速参考</button>
   </nav>
@@ -120,13 +109,13 @@
 <div class="main-content">
 
 <header>
-  <h1>📚 EPUB 工具箱 v1.14.3</h1>
-  <p>集成 MD公式修复、MD转EPUB、EPUB转PDF 和组合工作流四大功能的电子书处理工具</p>
+  <h1>📚 EPUB 工具箱 v1.15.0</h1>
+  <p>集成 MD公式修复、MD转EPUB、EPUB转PDF、EPUB转Word 和组合工作流五大功能的电子书处理工具</p>
   <div class="badges">
     <span class="badge badge-python">Python 3.8+</span>
     <span class="badge badge-pyqt">PyQt6 6.4+</span>
     <span class="badge badge-license">MIT License</span>
-    <span class="badge badge-version">v1.14.3</span>
+    <span class="badge badge-version">v1.15.0</span>
   </div>
 </header>
 
@@ -139,10 +128,10 @@
       <tr><td>🔄 组合工作流</td><td>.md</td><td>.epub / .pdf</td><td>三种模式自动编排，流水线并行，📊可视化监视面板，PDF页码</td></tr>
       <tr><td>📝 MD公式修复</td><td>.md</td><td>_fixed.md</td><td>16项可配置修复，4套预设方案，并排对比预览</td></tr>
       <tr><td>📖 MD转EPUB</td><td>.md</td><td>.epub</td><td>3套CSS模板 + 10种主题色，YAML标题，Mermaid图表</td></tr>
-      <tr><td>📄 EPUB转PDF</td><td>.epub</td><td>.pdf</td><td>4种页边距预设，显示页码，完成后打开各产物目录</td></tr>
+      <tr><td>📕 EPUB转PDF</td><td>.epub</td><td>.pdf</td><td>4种页边距预设，显示页码，完成后打开各产物目录</td></tr>
+      <tr><td>📄 EPUB转Word <span class="version-tag">v1.15.0 新增</span></td><td>.epub</td><td>.docx</td><td>XML级软回车修复，页面尺寸预设，离焦状态记忆</td></tr>
     </table>
   </div>
-
   <div class="card">
     <h3>🌐 全局特性</h3>
     <table>
@@ -154,6 +143,7 @@
       <tr><td>多实例控制</td><td>共享内存计数，限制最大实例数</td></tr>
       <tr><td>依赖管理</td><td>GUI 界面一键安装/更新 Pandoc、Calibre、Node.js、Mermaid CLI</td></tr>
       <tr><td>优雅关闭</td><td>等待线程结束 + 超时强制终止，清理临时文件</td></tr>
+      <tr><td>智能打开目录</td><td>全局修复 Windows 下资源管理器误跳"文档"文件夹的 Bug</td></tr>
     </table>
   </div>
 </div>
@@ -169,9 +159,8 @@
       <tr><td>全流程</td><td>①MD修复 ②MD转EPUB ③EPUB转PDF</td><td>.pdf</td><td>发布论文/报告</td></tr>
     </table>
   </div>
-
   <div class="card">
-    <h3>📊 可视化监视面板 <span class="version-tag">v1.14.3 稳定版</span></h3>
+    <h3>📊 可视化监视面板 <span class="version-tag">v1.14.x 稳定版</span></h3>
     <h4>核心改进</h4>
     <ul class="feature-list">
       <li>统一流水线状态管理 — pipeline_states 以原始 .md 绝对路径为唯一 key</li>
@@ -196,27 +185,20 @@
       <tr><td>日志面板</td><td>可折叠/保存/清空，区分 [Worker]/[面板] 来源</td></tr>
     </table>
   </div>
-
   <div class="card">
     <h3>🔧 实现原理</h3>
     <h4>流水线并行架构</h4>
-    <div class="arch-diagram">
-<pre>文件队列 → [步骤1: 修复] → Queue → [步骤2: 转EPUB] → Queue → [步骤3: 转PDF]
+    <div class="arch-diagram"><pre>文件队列 → [步骤1: 修复] → Queue → [步骤2: 转EPUB] → Queue → [步骤3: 转PDF]
     ↑          ↑ n workers          ↑ n workers          ↑ n workers
   file1     file1修复中          file1转EPUB中        file1转PDF中
-  file2     file2修复中          file2等待             file2等待</pre>
-    </div>
+  file2     file2修复中          file2等待             file2等待</pre></div>
     <p style="margin-top:12px">哨兵对象：<code>_SKIP_SENTINEL</code>（失败传递）/ <code>_STOP_SENTINEL</code>（结束信号）</p>
   </div>
 </div>
 
 <!-- ==================== MD公式修复 ==================== -->
 <div id="tab-repair" class="tab-content">
-  <div class="card">
-    <h3>📝 16项可配置修复</h3>
-    <p><strong>核心设计原则：不勾选 = 不修复。</strong>默认所有功能关闭，用户完全掌控。</p>
-  </div>
-
+  <div class="card"><h3>📝 16项可配置修复</h3><p><strong>核心设计原则：不勾选 = 不修复。</strong>默认所有功能关闭，用户完全掌控。</p></div>
   <div class="card">
     <h3>🟢 格式与语法修复（低风险，推荐开启）</h3>
     <table>
@@ -231,7 +213,6 @@
       <tr><td>💲 美元符号转义</td><td>孤立 $</td><td>转义为 \$</td></tr>
     </table>
   </div>
-
   <div class="card">
     <h3>📋 4套预设方案</h3>
     <table>
@@ -242,7 +223,6 @@
       <tr><td>🔵 学术论文</td><td>仅语法修正</td><td>保留语义</td></tr>
     </table>
   </div>
-
   <div class="card">
     <h3>🔍 预览与调试体系</h3>
     <table>
@@ -259,11 +239,7 @@
 
 <!-- ==================== MD转EPUB ==================== -->
 <div id="tab-md2epub" class="tab-content">
-  <div class="card">
-    <h3>📖 MD转EPUB — 精美排版电子书</h3>
-    <p>基于 Pandoc + 自建 EPUB 打包器（EPUB 3.0 + NCX 兼容 EPUB 2.0）。</p>
-  </div>
-
+  <div class="card"><h3>📖 MD转EPUB — 精美排版电子书</h3><p>基于 Pandoc + 自建 EPUB 打包器（EPUB 3.0 + NCX 兼容 EPUB 2.0）。</p></div>
   <div class="card">
     <h3>🎨 CSS 排版风格（外部文件自动发现）</h3>
     <table>
@@ -273,14 +249,13 @@
       <tr><td>暗色风格</td><td>深色背景+浅色文字</td><td>夜间阅读</td></tr>
     </table>
   </div>
-
   <div class="card">
     <h3>✨ 核心特性</h3>
     <ul class="feature-list">
-      <li>10种主题颜色（蓝/绿/紫/橙/红/青/粉/灰/深色/棕）</li>
+      <li>10种主题颜色</li>
       <li>YAML 标题作为 EPUB 内部标题（title/subtitle/author/date）</li>
       <li>YAML 标题重命名输出文件</li>
-      <li>Mermaid 图表渲染（可选，需 Node.js + mmdc）</li>
+      <li>Mermaid 图表渲染（可选）</li>
       <li>图片自动处理（复制 + 去重 + 重名检测）</li>
     </ul>
   </div>
@@ -288,11 +263,7 @@
 
 <!-- ==================== EPUB转PDF ==================== -->
 <div id="tab-epub2pdf" class="tab-content">
-  <div class="card">
-    <h3>📄 EPUB转PDF — 多预设打印输出 + 页码</h3>
-    <p>基于 Calibre <code>ebook-convert</code>。</p>
-  </div>
-
+  <div class="card"><h3>📕 EPUB转PDF — 多预设打印输出 + 页码</h3><p>基于 Calibre <code>ebook-convert</code>。</p></div>
   <div class="card">
     <h3>📐 4种页边距预设</h3>
     <table>
@@ -303,9 +274,8 @@
       <tr><td>对称装订</td><td>10/10/10/10</td><td>打印装订</td></tr>
     </table>
   </div>
-
   <div class="card">
-    <h3>✨ 新增功能 <span class="version-tag">v1.14.3</span></h3>
+    <h3>✨ 功能亮点</h3>
     <ul class="feature-list">
       <li>显示页码：勾选后在 PDF 页面底部显示页码</li>
       <li>完成后打开各产物目录：多文件夹场景下自动打开所有输出目录</li>
@@ -314,12 +284,39 @@
   </div>
 </div>
 
+<!-- ==================== EPUB转Word ==================== -->
+<div id="tab-epub2docx" class="tab-content">
+  <div class="card">
+    <h3>📄 EPUB转Word — 软回车修复与排版优化 <span class="version-tag">v1.15.0 新增</span></h3>
+    <p>基于 Calibre 转换，并内置强大的 <strong>XML 级 DOCX 后处理引擎</strong>，彻底解决 EPUB 转 Word 后的排版灾难。</p>
+  </div>
+  <div class="card">
+    <h3>⚙️ 核心功能</h3>
+    <table>
+      <tr><th>功能</th><th>说明</th></tr>
+      <tr><td>✨ 软回车智能修复</td><td>自动将 Word 中的软回车拆分为标准硬段落，彻底解决段落破碎问题</td></tr>
+      <tr><td>📄 页面尺寸预设</td><td>扁平化单选支持 A4 / Letter / B5 / A5</td></tr>
+      <tr><td>🧠 离焦状态记忆</td><td>切换模块或关闭窗口时自动保存当前选项，下次进入无缝恢复</td></tr>
+      <tr><td>📂 智能打开目录</td><td>强制绝对路径化，杜绝 Windows 下误跳"文档"文件夹的 Bug</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h3>🔧 软回车修复算法</h3>
+    <p>使用 <code>lxml</code> 和 <code>python-docx</code> 遍历 Word 底层 XML 树：</p>
+    <ol>
+      <li>定位所有 <code>&lt;w:br/&gt;</code> 节点</li>
+      <li>判断其父级是否为 <code>&lt;w:body&gt;</code></li>
+      <li>若是，则执行段落拆分算法：深拷贝样式，截断当前文本节点，将后续节点移入新建段落</li>
+      <li>若否（如表格或文本框内），则直接移除节点，防止结构错乱</li>
+    </ol>
+  </div>
+</div>
+
 <!-- ==================== 项目架构 ==================== -->
 <div id="tab-architecture" class="tab-content">
   <div class="card">
     <h3>🏗️ 整体架构</h3>
-    <div class="arch-diagram">
-<pre>
+    <div class="arch-diagram"><pre>
 ┌─────────────────────────────────────────────────────────────┐
 │                        <span style="color:#f1c40f">main.py</span>                          │
 │  主窗口 · 三栏布局 · 导航 · 快捷键 · 托盘 · 优雅退出 · 多实例  │
@@ -328,19 +325,15 @@
 │  基类 · 主题 · CSS管理 · 启动动画 · 工具函数 · 通用组件       │
 ├─────────────────────────────────────────────────────────────┤
 │                       <span style="color:#27ae60">modules/</span>                          │
-│  工作流 · MD公式修复 · MD转EPUB · EPUB转PDF                  │
+│  工作流 · MD公式修复 · MD转EPUB · EPUB转PDF · EPUB转Word     │
 ├─────────────────────────────────────────────────────────────┤
 │                      <span style="color:#e67e22">resources/</span>                         │
 │  CSS模板 · MathJax引擎 · 图标                                │
-└─────────────────────────────────────────────────────────────┘
-</pre>
-    </div>
+└─────────────────────────────────────────────────────────────┘</pre></div>
   </div>
-
   <div class="card">
     <h3>📂 文件树</h3>
-    <div class="arch-diagram">
-<pre>
+    <div class="arch-diagram"><pre>
 EPUB_TOOLBOX/
 ├── <span style="color:#f1c40f">main.py</span>
 ├── <span style="color:#3498db">core/</span>
@@ -353,21 +346,18 @@ EPUB_TOOLBOX/
 ├── <span style="color:#27ae60">modules/</span>
 │   ├── <span style="color:#27ae60">workflow/</span>
 │   │   ├── module.py / processor.py
-│   │   ├── <span style="color:#e74c3c">pipeline_state.py</span>  ★ v1.14.1新增
+│   │   ├── <span style="color:#e74c3c">pipeline_state.py</span>
 │   │   ├── monitor_panel.py / monitor_worker.py
 │   │   └── monitor_row.py / monitor_row_config.py
 │   ├── md_repair/ / md2epub/ / epub2pdf/
+│   └── <span style="color:#e74c3c">epub2docx/</span>  ★ v1.15.0 新增
 ├── resources/
 │   ├── css/ / mathjax/ / icon.ico / icon.png
-└── tests/ / build_folder.spec
-</pre>
-    </div>
+└── tests/ / build_folder.spec</pre></div>
   </div>
-
   <div class="card">
     <h3>📡 监视面板同步机制（v1.14.x 重构）</h3>
-    <div class="arch-diagram">
-<pre>
+    <div class="arch-diagram"><pre>
 主界面 WorkflowWorker
     ├── step_state_changed → 始终携带原始 .md 路径
     ├── pipeline_states（key = 原始.md 绝对路径）
@@ -377,9 +367,7 @@ EPUB_TOOLBOX/
 
 <span style="color:#e74c3c">pipeline_state.py</span>
     ├── resolve_source_file() → 从任意产物路径反推原始 .md
-    └── make_pipeline_key() → 统一 key 生成规则
-</pre>
-    </div>
+    └── make_pipeline_key() → 统一 key 生成规则</pre></div>
   </div>
 </div>
 
@@ -389,7 +377,7 @@ EPUB_TOOLBOX/
     <h3>⌨️ 快捷键一览</h3>
     <table>
       <tr><th>快捷键</th><th>功能</th><th>作用域</th></tr>
-      <tr><td><kbd>Ctrl+0/1/2/3</kbd></td><td>切换模块</td><td>主窗口</td></tr>
+      <tr><td><kbd>Ctrl+0/1/2/3/4</kbd></td><td>切换模块</td><td>主窗口</td></tr>
       <tr><td><kbd>Ctrl+Shift+D</kbd></td><td>开始处理</td><td>主窗口</td></tr>
       <tr><td><kbd>Ctrl+Shift+M</kbd></td><td>打开监视面板</td><td>主窗口</td></tr>
       <tr><td><kbd>Ctrl+Shift+L</kbd></td><td>批量预检摘要</td><td>主窗口</td></tr>
@@ -403,12 +391,12 @@ EPUB_TOOLBOX/
       <tr><td><kbd>Delete</kbd></td><td>删除选中文件/行</td><td>主窗口/面板</td></tr>
     </table>
   </div>
-
   <div class="card">
     <h3>📝 版本历史</h3>
     <table>
       <tr><th>版本</th><th>日期</th><th>核心变更</th></tr>
-      <tr><td>v1.14.3</td><td>2026.05.17</td><td>PDF显示页码、完成后打开各产物目录、确认弹窗增强</td></tr>
+      <tr><td>v1.15.0</td><td>2026.05.22</td><td>新增 EPUB转Word 模块（XML级软回车修复），全局修复"打开目录"Bug，配置记忆增强</td></tr>
+      <tr><td>v1.14.3</td><td>2026.05.17</td><td>PDF页码、Pandoc编码修复、完成后打开各产物目录、EPUB标题排版优化</td></tr>
       <tr><td>v1.14.2</td><td>2026.05.10</td><td>修复+转换模式回滚、中间产物清理可视化、关闭弹窗优化</td></tr>
       <tr><td>v1.14.1</td><td>2026.05.10</td><td>监视面板同步重构、pipeline_state.py、配置闭环</td></tr>
       <tr><td>v1.14.0</td><td>2026.05.09</td><td>监视面板架构重构、配置键常量化</td></tr>
@@ -416,17 +404,16 @@ EPUB_TOOLBOX/
       <tr><td>v1.12.1</td><td>2026.05.01</td><td>统一版本管理、120个单元测试</td></tr>
     </table>
   </div>
-
   <div class="card">
     <h3>🙏 致谢</h3>
     <p style="margin-bottom:8px;">
       <a href="https://pandoc.org/">Pandoc</a> ·
       <a href="https://calibre-ebook.com/">Calibre</a> ·
       <a href="https://riverbankcomputing.com/software/pyqt/">PyQt6</a> ·
+      <a href="https://python-docx.readthedocs.io/">python-docx</a> ·
       <a href="https://www.mathjax.org/">MathJax</a> ·
       <a href="https://github.com/boppreh/keyboard">keyboard</a> ·
-      <a href="https://jrsoftware.org/isinfo.php">Inno Setup</a> ·
-      <a href="https://pytest.org/">pytest</a>
+      <a href="https://jrsoftware.org/isinfo.php">Inno Setup</a>
     </p>
     <p style="color:var(--text-secondary);">MIT License | Copyright © 2026 YQJ</p>
   </div>
