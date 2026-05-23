@@ -21,12 +21,14 @@ from PyQt6.QtWidgets import (
     QGroupBox, QRadioButton, QSpinBox, QCheckBox, QLineEdit,
     QFileDialog, QGridLayout, QMessageBox, QButtonGroup, QFrame
 )
-from PyQt6.QtCore import QThread, pyqtSignal, Qt
+from PyQt6.QtCore import QThread, pyqtSignal, Qt, QSettings
 from PyQt6.QtGui import QIntValidator
 
 from core.base_module import BaseModule
 from core.components import UnifiedFileListWidget, FileStatus, LogPanel
 from core.utils import check_calibre, find_executable
+# ★ 导入常量化配置键
+from core.config_keys import SettingsDomain, EPUB2PdfKey
 from .processor import convert_epub_to_pdf, PRESETS
 from core.components.file_list import DropHotzoneMixin
 
@@ -71,7 +73,7 @@ class ConversionWorker(QThread):
         self.max_workers = max_workers
         self.auto_open = auto_open
         self.show_page_numbers = show_page_numbers
-        self._stop_event = Event() 
+        self._stop_event = Event()
         self.results = []
     
     def stop(self):
@@ -277,7 +279,7 @@ class ConversionWorker(QThread):
     def _open_folder(folder: Path):
         """跨平台打开文件夹"""
         try:
-            # ✅ 终极保险：强制转换为绝对路径，彻底杜绝 Windows explorer 打开“文档”
+            # ✅ 终极保险：强制转换为绝对路径，彻底杜绝 Windows explorer 打开"文档"
             folder = folder.resolve()
         except Exception:
             pass
@@ -306,7 +308,7 @@ class EPUB2PDFModule(BaseModule):
     
     @property
     def module_name(self) -> str:
-        return "2-EPUB转PDF"
+        return "4-EPUB转PDF"
     
     @property
     def module_icon(self) -> str:
@@ -315,10 +317,8 @@ class EPUB2PDFModule(BaseModule):
     @property
     def module_description(self) -> str:
         return (
-            "将 EPUB 电子书转换为 PDF 文档。"
-            "4种页边距预设（极限紧凑/左右紧凑/上下紧凑/对称装订），自定义字号。"
-            "可选显示页码（底部居中浅灰色）。"
-            "线程安全Event停止，自适应并行数，多线程并行转换。"
+            "EPUB → PDF 批量转换。"
+            "4种页边距预设、自定义字号、可选页码、多线程并行。"
         )
 
     
@@ -509,7 +509,7 @@ class EPUB2PDFModule(BaseModule):
         preset_layout.addStretch()
         
         # 连接切换信号
-        self.preset_group.buttonClicked.connect(self._on_preset_change)
+        self.preset_group.buttonClicked.connect(self._on_preset_change) 
         
         return preset_widget
     
@@ -741,6 +741,65 @@ class EPUB2PDFModule(BaseModule):
                 "top": 0, "bottom": 0, "left": 0, "right": 0, "font_size": 12
             }
     
+    # ★ ==================== 配置持久化（新增） ====================
+    
+    def get_config(self) -> dict:
+        """收集 UI 上的所有设置"""
+        return {
+            EPUB2PdfKey.MARGINS: self._get_current_margins(),
+            EPUB2PdfKey.SHOW_PAGE_NUMBERS: self.show_page_numbers_cb.isChecked(),
+            EPUB2PdfKey.MAX_THREADS: self.worker_spin.value(),
+            EPUB2PdfKey.AUTO_OPEN: self.auto_open_cb.isChecked(),
+            EPUB2PdfKey.OUTPUT_DIR: str(self.output_dir) if self.output_dir else None,
+        }
+
+    def _load_config(self):
+        """从 QSettings 读取并应用到 UI"""
+        settings = QSettings(SettingsDomain.EPUB_TOOLBOX, SettingsDomain.SETTINGS)
+        cfg = settings.value(EPUB2PdfKey.CONFIG, {})
+        if not cfg:
+            return
+
+        # 恢复页边距
+        margins = cfg.get(EPUB2PdfKey.MARGINS, {})
+        if margins and hasattr(self, 'top_margin'):
+            self.top_margin.setText(str(margins.get('top', 0)))
+            self.bottom_margin.setText(str(margins.get('bottom', 0)))
+            self.left_margin.setText(str(margins.get('left', 0)))
+            self.right_margin.setText(str(margins.get('right', 0)))
+            self.font_size.setText(str(margins.get('font_size', 12)))
+
+        if hasattr(self, 'show_page_numbers_cb'):
+            self.show_page_numbers_cb.setChecked(cfg.get(EPUB2PdfKey.SHOW_PAGE_NUMBERS, False))
+        if hasattr(self, 'worker_spin'):
+            self.worker_spin.setValue(cfg.get(EPUB2PdfKey.MAX_THREADS, 4))
+        if hasattr(self, 'auto_open_cb'):
+            self.auto_open_cb.setChecked(cfg.get(EPUB2PdfKey.AUTO_OPEN, False))
+
+        output_dir_str = cfg.get(EPUB2PdfKey.OUTPUT_DIR)
+        if output_dir_str:
+            self.output_dir = Path(output_dir_str)
+            if hasattr(self, 'output_dir_edit'):
+                self.output_dir_edit.setText(output_dir_str)
+
+    def _save_config(self):
+        """保存设置到 QSettings"""
+        settings = QSettings(SettingsDomain.EPUB_TOOLBOX, SettingsDomain.SETTINGS)
+        settings.setValue(EPUB2PdfKey.CONFIG, self.get_config())
+
+    def on_activate(self):
+        """模块被激活（切换到此标签页）时调用"""
+        self._load_config()
+        self.log(f"已切换到 {self.module_name}", "INFO")
+
+    def on_deactivate(self):
+        """模块失去焦点（切换到其他模块或关闭窗口）时调用"""
+        self._save_config()
+        if getattr(self, 'is_processing', False):
+            self.stop_processing()
+    
+    # ★ ==================== 配置持久化结束 ====================
+    
     def start_processing(self, files: List[Path] = None, **kwargs) -> bool:
         """开始批量转换
         
@@ -910,6 +969,9 @@ class EPUB2PDFModule(BaseModule):
         success_count = sum(1 for r in results if r['status'] == 'success')
         failed_count = len(results) - success_count
         
+        # ★ 保存用户设置
+        self._save_config()
+        
         self.log("")
         self.log("=" * 60)
         self.log(f"转换完成！成功: {success_count}, 失败: {failed_count}", "SUCCESS")
@@ -941,5 +1003,5 @@ class EPUB2PDFModule(BaseModule):
 
 # ==================== 元信息 ====================
 __author__ = "YQJ"
-__version__ = "1.1.2"
-__date__ = "2026.05.22"
+__version__ = "1.2.0"
+__date__ = "2026.05.23"

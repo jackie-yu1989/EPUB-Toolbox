@@ -6,10 +6,10 @@
 消除魔法字符串散落各处的问题
 
 使用方式:
-    from core.config_keys import SettingsDomain, MDRepairKey, SettingsKey
+    from core.config_keys import SettingsDomain, MDRepairKey, SettingsKey, EPUB2DocxKey, EPUB2PdfKey, MD2EpubKey, WorkflowKey
     
-    settings = QSettings(SettingsDomain.EPUB_TOOLBOX, SettingsDomain.MD_REPAIR)
-    value = settings.value(MDRepairKey.CONFIG_V4)
+    settings = QSettings(SettingsDomain.EPUB_TOOLBOX, SettingsDomain.SETTINGS)
+    value = settings.value(WorkflowKey.CONFIG)
 """
 
 
@@ -92,11 +92,83 @@ class MDRepairKey:
     ]
 
 
+# ==================== EPUB转Word 配置键 ====================
+
+class EPUB2DocxKey:
+    """EPUB转Word — QSettings 存储键与配置字段名"""
+    
+    # QSettings 存储键
+    CONFIG = "epub2docx_config"
+    
+    # 配置字段名
+    PAGE_SIZE = "page_size"
+    FIX_SOFT_BREAKS = "fix_soft_breaks"
+    MAX_THREADS = "max_threads"
+    AUTO_OPEN = "auto_open"
+    OUTPUT_DIR = "output_dir"
+
+
+# ==================== EPUB转PDF 配置键 ====================
+
+class EPUB2PdfKey:
+    """EPUB转PDF — QSettings 存储键与配置字段名"""
+    
+    # QSettings 存储键
+    CONFIG = "epub2pdf_config"
+    
+    # 配置字段名
+    MARGINS = "margins"
+    SHOW_PAGE_NUMBERS = "show_page_numbers"
+    MAX_THREADS = "max_threads"
+    AUTO_OPEN = "auto_open"
+    OUTPUT_DIR = "output_dir"
+
+
+# ==================== MD转EPUB 配置键 ====================
+
+class MD2EpubKey:
+    """MD转EPUB — QSettings 存储键与配置字段名"""
+    
+    # QSettings 存储键
+    CONFIG = "md2epub_config"
+    
+    # 配置字段名
+    CSS_STYLE = "css_style"
+    COLOR_KEY = "color_key"
+    MAX_THREADS = "max_threads"
+    KEEP_TEMP = "keep_temp"
+    AUTO_OPEN = "auto_open"
+    RENAME_WITH_TITLE = "rename_with_title"
+    USE_YAML_TITLE = "use_yaml_title"
+    OUTPUT_DIR = "output_dir"
+
+
+# ==================== 组合工作流配置键 ====================
+
+class WorkflowKey:
+    """组合工作流 — QSettings 存储键与配置字段名"""
+    
+    # QSettings 存储键
+    CONFIG = "workflow_config"
+    
+    # 配置字段名
+    MODE = "mode"
+    STEP_WORKERS = "step_workers"
+    RENAME_BY_TITLE = "rename_by_title"
+    USE_YAML_TITLE = "use_yaml_title"
+    KEEP_INTERMEDIATE = "keep_intermediate"
+    AUTO_OPEN = "auto_open"
+    SHOW_PAGE_NUMBERS = "show_page_numbers"
+    OUTPUT_DIR = "output_dir"
+    EPUB_CSS_STYLE = "epub_css_style"
+    EPUB_COLOR_KEY = "epub_color_key"
+    PDF_PRESET_KEY = "pdf_preset_key"
+
+
 # ==================== 主窗口设置键 ====================
 
 class SettingsKey:
     """主窗口 — QSettings 键名"""
-    
     SPLITTER_SIZES = "splitter_sizes"
     LOG_PANEL_PINNED = "log_panel_pinned"
     LOG_PANEL_VISIBLE = "log_panel_visible"
@@ -106,5 +178,5 @@ class SettingsKey:
 
 # ==================== 元信息 ====================
 __author__ = "YQJ"
-__version__ = "1.0.0"
-__date__ = "2026.05.08"
+__version__ = "1.3.0"
+__date__ = "2026.05.23"

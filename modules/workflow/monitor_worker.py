@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
 """
 监视面板 - 支持实时状态上报的工作流 Worker
 扩展现有 WorkflowWorker，在步骤处理过程中实时发射状态信号
@@ -15,9 +14,12 @@ from threading import Event
 
 from PyQt6.QtCore import QThread, pyqtSignal, QObject
 
-from modules.workflow.processor import run_repair_step, run_md2epub_step, run_epub2pdf_step
+from modules.workflow.processor import run_repair_step, run_md2epub_step, run_epub2pdf_step, run_epub2docx_step
 from modules.workflow.module import WORKFLOW_MODES, _SKIP_SENTINEL, _STOP_SENTINEL
 
+# ★ 导入常量化配置键及工作流专用常量
+from core.config_keys import MDRepairKey
+from .constants import StepKey, ModeKey
 from .monitor_row import StepStatus, StepType
 
 
@@ -52,6 +54,8 @@ class MonitorWorkflowWorker(QThread):
         step_workers: Optional[Dict[str, int]] = None,
         row_configs: Optional[Dict[Path, Dict[str, Any]]] = None,
         signals: Optional[MonitorWorkerSignals] = None,
+        docx_page_size: str = "a4",
+        docx_fix_soft_breaks: bool = True
     ):
         super().__init__()
         self.files = files
@@ -69,6 +73,10 @@ class MonitorWorkflowWorker(QThread):
         self.row_configs = row_configs or {}
         self.signals = signals or MonitorWorkerSignals()
 
+        # ★ 动态接收 Word 转换参数
+        self.docx_page_size = docx_page_size
+        self.docx_fix_soft_breaks = docx_fix_soft_breaks
+
         if rename_by_title:
             from modules.md_repair.processor import MarkdownTitleExtractor
             self.title_extractor = MarkdownTitleExtractor()
@@ -78,14 +86,19 @@ class MonitorWorkflowWorker(QThread):
         cpu_count = os.cpu_count() or 4
         default_workers = min(4, cpu_count)
 
+        # ★ 使用常量作为键名
         self.step_workers = step_workers or {
-            'repair': min(2, cpu_count),
-            'md2epub': default_workers,
-            'epub2pdf': default_workers,
+            StepKey.REPAIR: min(2, cpu_count),
+            StepKey.MD2EPUB: default_workers,
+            StepKey.EPUB2PDF: default_workers,
+            StepKey.EPUB2DOCX: default_workers,
         }
 
         self._step_elapsed_times: Dict[str, List[float]] = {
-            'repair': [], 'md2epub': [], 'epub2pdf': []
+            StepKey.REPAIR: [], 
+            StepKey.MD2EPUB: [], 
+            StepKey.EPUB2PDF: [],
+            StepKey.EPUB2DOCX: []
         }
 
     def stop(self):
@@ -97,13 +110,15 @@ class MonitorWorkflowWorker(QThread):
         row_override = self.row_configs.get(file_path, {})
         if row_override:
             for key, value in row_override.items():
-                if key == 'formula_config':
+                # ★ 使用常量替代硬编码 "formula_config"
+                if key == MDRepairKey.FORMULA_CONFIG:
                     continue
                 config[key] = value
-            if 'formula_config' in row_override and 'formula_config' in config:
-                config['formula_config'].update(row_override['formula_config'])
-            elif 'formula_config' in row_override:
-                config['formula_config'] = row_override['formula_config']
+            # ★ 使用常量替代硬编码 "formula_config"
+            if MDRepairKey.FORMULA_CONFIG in row_override and MDRepairKey.FORMULA_CONFIG in config:
+                config[MDRepairKey.FORMULA_CONFIG].update(row_override[MDRepairKey.FORMULA_CONFIG])
+            elif MDRepairKey.FORMULA_CONFIG in row_override:
+                config[MDRepairKey.FORMULA_CONFIG] = row_override[MDRepairKey.FORMULA_CONFIG]
         return config
 
     def _estimate_remaining(self, steps_done: int, total_steps: int) -> float:
@@ -126,10 +141,12 @@ class MonitorWorkflowWorker(QThread):
         steps = mode_info['steps']
         total_files = len(self.files)
 
+        # ★ 使用常量构建映射
         step_type_map = {
-            'repair': StepType.REPAIR,
-            'md2epub': StepType.MD2EPUB,
-            'epub2pdf': StepType.EPUB2PDF,
+            StepKey.REPAIR: StepType.REPAIR,
+            StepKey.MD2EPUB: StepType.MD2EPUB,
+            StepKey.EPUB2PDF: StepType.EPUB2PDF,
+            StepKey.EPUB2DOCX: StepType.EPUB2DOCX,
         }
 
         self.signals.log_message.emit(f"🚀 启动工作流: {mode_info['name']}", "INFO")
@@ -144,10 +161,12 @@ class MonitorWorkflowWorker(QThread):
         start_total = time.time()
         all_output_paths = self._preprocess_output_paths(steps, total_files)
 
+        # ★ 使用常量作为键名
         step_funcs = {
-            'repair': run_repair_step,
-            'md2epub': run_md2epub_step,
-            'epub2pdf': run_epub2pdf_step,
+            StepKey.REPAIR: run_repair_step,
+            StepKey.MD2EPUB: run_md2epub_step,
+            StepKey.EPUB2PDF: run_epub2pdf_step,
+            StepKey.EPUB2DOCX: run_epub2docx_step,
         }
 
         total_steps_count = total_files * len(steps)
@@ -201,20 +220,30 @@ class MonitorWorkflowWorker(QThread):
                 step_start = time.time()
 
                 try:
-                    if step_name == 'repair':
+                    # ★ 使用常量进行分支判断
+                    if step_name == StepKey.REPAIR:
                         kwargs = {'config': row_config, 'log_callback': log_cb}
                         if output_path:
                             kwargs['output_filename'] = output_path.name
                         success, msg, output = step_func(current_file, out_dir, **kwargs)
-                    elif step_name == 'md2epub':
+                    elif step_name == StepKey.MD2EPUB:
                         kwargs = {'css': self.epub_css, 'log_callback': log_cb, 'use_yaml_title': self.use_yaml_title}
                         if output_path:
                             kwargs['output_epub'] = output_path
                         success, msg, output = step_func(current_file, out_dir, **kwargs)
-                    elif step_name == 'epub2pdf':
+                    elif step_name == StepKey.EPUB2PDF:
                         kwargs = {'margins': self.pdf_margins, 'log_callback': log_cb}
                         if output_path:
                             kwargs['output_pdf'] = output_path
+                        success, msg, output = step_func(current_file, out_dir, **kwargs)
+                    elif step_name == StepKey.EPUB2DOCX:
+                        kwargs = {
+                            'page_size': self.docx_page_size,
+                            'fix_soft_breaks': self.docx_fix_soft_breaks,
+                            'log_callback': log_cb
+                        }
+                        if output_path:
+                            kwargs['output_docx'] = output_path
                         success, msg, output = step_func(current_file, out_dir, **kwargs)
                     else:
                         continue
@@ -337,7 +366,8 @@ class MonitorWorkflowWorker(QThread):
         total_time = time.time() - start_total
         success_count = sum(1 for r in self.results if r['status'] == 'success')
         self.signals.log_message.emit(
-            f"\n{'='*50}\n⏱️ 流水线完成，耗时: {total_time:.1f}秒\n   成功: {success_count}/{total_files}\n{'='*50}",
+            f"\n{'='*50}\n⏱️ 流水线完成，耗时: {total_time:.1f}秒\n"
+            f"   成功: {success_count}/{total_files}\n{'='*50}",
             "SUCCESS" if success_count == total_files else "WARNING")
 
         if self.auto_open:
@@ -365,12 +395,16 @@ class MonitorWorkflowWorker(QThread):
                 clean_base = md_file.stem
             for i, step_name in enumerate(steps):
                 is_final = (i == len(steps) - 1)
-                if step_name == 'repair':
-                    file_paths['repair'] = source_dir / f"{clean_base}_fixed.md"
-                elif step_name == 'md2epub':
-                    file_paths['md2epub'] = (final_dir if is_final else source_dir) / f"{clean_base}.epub"
-                elif step_name == 'epub2pdf':
-                    file_paths['epub2pdf'] = final_dir / f"{clean_base}.pdf"
+                
+                # ★ 使用常量进行步骤判断
+                if step_name == StepKey.REPAIR:
+                    file_paths[StepKey.REPAIR] = source_dir / f"{clean_base}_fixed.md"
+                elif step_name == StepKey.MD2EPUB:
+                    file_paths[StepKey.MD2EPUB] = (final_dir if is_final else source_dir) / f"{clean_base}.epub"
+                elif step_name == StepKey.EPUB2PDF:
+                    file_paths[StepKey.EPUB2PDF] = final_dir / f"{clean_base}.pdf"
+                elif step_name == StepKey.EPUB2DOCX:
+                    file_paths[StepKey.EPUB2DOCX] = final_dir / f"{clean_base}.docx"
             all_output_paths[file_idx] = file_paths
         return all_output_paths
 
@@ -409,5 +443,5 @@ class MonitorWorkflowWorker(QThread):
 
 # ==================== 元信息 ====================
 __author__ = "YQJ"
-__version__ = "1.0.0"
-__date__ = "2026.05.06"
+__version__ = "1.0.1"
+__date__ = "2026.05.23"

@@ -159,7 +159,48 @@ def run_epub2pdf_step(
         traceback.print_exc()
         return False, f"PDF转换失败: {e}", None
     
+def run_epub2docx_step(
+    input_file: Path,
+    output_dir: Path,
+    page_size: str = "a4",
+    fix_soft_breaks: bool = True,
+    log_callback: Callable = None,
+    output_docx: Path = None
+) -> Tuple[bool, str, Optional[Path]]:
+    """执行 EPUB转Word 步骤"""
+    try:
+        from modules.epub2docx.processor import convert_epub_to_docx
+        
+        if log_callback:
+            log_callback(f"📄 转换Word: {input_file.name}")
+            
+        if output_docx is None:
+            output_docx = output_dir / input_file.with_suffix('.docx').name
+            
+        # 防覆盖
+        if output_docx.exists():
+            base_stem = output_docx.stem
+            counter = 1
+            while output_docx.exists():
+                output_docx = output_dir / f"{base_stem}_{counter}.docx"
+                counter += 1
+                
+        success, msg, elapsed = convert_epub_to_docx(
+            input_file, output_docx, page_size, fix_soft_breaks
+        )
+        
+        if success and output_docx.exists():
+            return True, f"Word转换完成 ({elapsed:.1f}秒)", output_docx
+        else:
+            return False, f"Word转换失败: {msg}", None
+            
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return False, f"Word转换失败: {e}", None
+
+
 # ==================== 元信息 ====================
 __author__ = "YQJ"
-__version__ = "1.1.1"
-__date__ = "2026.05.17"
+__version__ = "1.1.2"
+__date__ = "2026.05.23"

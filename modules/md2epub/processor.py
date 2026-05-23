@@ -8,6 +8,7 @@ MD转EPUB - 核心处理逻辑
 性能优化特性：
 - 正则表达式集中管理 + 预编译（EpubRegexPatterns）
 - 图片名称 Set 查找（O(1) 替代 O(n)）
+- ★ 图片原始尺寸自动注入（Pillow 可选依赖）
 """
 
 import re
@@ -27,6 +28,14 @@ from core.utils import find_executable
 
 # 模块级日志记录器
 logger = logging.getLogger(__name__)
+
+# ★ Pillow 可选导入（图片尺寸读取）
+try:
+    from PIL import Image as PILImage
+    HAS_PILLOW = True
+except ImportError:
+    HAS_PILLOW = False
+    logger.debug("Pillow 未安装，图片尺寸注入功能将被跳过")
 
 
 # ==================== 正则表达式集中管理 + 预编译 ====================
@@ -543,8 +552,12 @@ class ImageProcessor:
     
     负责解析 Markdown 中的本地图片引用、复制图片到临时目录、
     处理重名冲突。
+    ★ 新增：自动读取图片原始尺寸并注入 Markdown 引用
     使用 Set 进行 O(1) 图片名查找。
     """
+    
+    # ★ 支持读取尺寸的图片格式
+    _SUPPORTED_SIZE_FORMATS = {'.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp'}
     
     def __init__(self, md_file: Path, img_dir: Path):
         """初始化图片处理器
@@ -558,9 +571,37 @@ class ImageProcessor:
         self.image_files: List[str] = []
         self.processed_count = 0
         self._image_names: Set[str] = set()  # ★ O(1) 查找
+        # ★ 缓存已读取的图片尺寸，避免重复 IO
+        self._size_cache: Dict[str, Tuple[int, int]] = {}
+    
+    @staticmethod
+    def _get_image_dimensions(img_path: Path) -> Optional[Tuple[int, int]]:
+        """读取图片原始尺寸（宽, 高）
+        
+        Args:
+            img_path: 图片文件路径
+            
+        Returns:
+            Optional[Tuple[int, int]]: (width, height)，失败返回 None
+        """
+        if not HAS_PILLOW:
+            return None
+        
+        suffix = img_path.suffix.lower()
+        if suffix not in ImageProcessor._SUPPORTED_SIZE_FORMATS:
+            return None
+        
+        try:
+            with PILImage.open(img_path) as img:
+                return img.size  # (width, height)
+        except Exception as e:
+            logger.debug(f"无法读取图片尺寸: {img_path.name} - {e}")
+            return None
     
     def process_markdown_images(self, content: str) -> Tuple[str, int, List[str]]:
         """处理 Markdown 中的图片引用
+        
+        ★ 增强：自动注入 width/height 属性到 Markdown 图片语法
         
         Args:
             content: Markdown 内容
@@ -592,12 +633,23 @@ class ImageProcessor:
                 new_content = new_content[:match.start()] + new_content[match.end():]
                 continue
             
+            # ★ 在复制前读取原始尺寸
+            dimensions = self._get_image_dimensions(img_src)
+            
             img_name = self._copy_image(img_src)
             if not img_name:
                 new_content = new_content[:match.start()] + new_content[match.end():]
                 continue
             
+            # ★ 构建带尺寸的 Markdown 图片引用
+            # 格式: ![alt](images/name){width=X height=Y}
+            # Pandoc 会将 {width=X height=Y} 转换为 <img width="X" height="Y">
             new_img_ref = f'![{alt_text}](images/{img_name})'
+            if dimensions:
+                w, h = dimensions
+                new_img_ref += f'{{width={w} height={h}}}'
+                logger.debug(f"📐 注入图片尺寸: {img_name} ({w}×{h})")
+            
             new_content = new_content[:match.start()] + new_img_ref + new_content[match.end():]
         
         return new_content, self.processed_count, self.image_files
@@ -704,7 +756,7 @@ def render_mermaid_to_images(
             if success:
                 img_tag = (
                     f'<div class="mermaid-container">'
-                    f'<img src="images/{img_name}" class="mermaid-img" alt="Mermaid图表" />'
+                    f'<img src="images/{img_name}" class="mermaid-img" alt="Mermaid图表"/>'
                     f'</div>'
                 )
                 new_content = new_content[:m.start()] + img_tag + new_content[m.end():]
@@ -748,6 +800,7 @@ def convert_markdown_to_epub(
         work_dir: 临时工作目录
         css: EPUB CSS 样式字符串
         log_callback: 可选的日志回调函数
+        use_yaml_title: 是否使用 YAML 标题作为 EPUB 内部标题
         
     Returns:
         Tuple[bool, str]: (是否成功, 消息)
@@ -771,11 +824,16 @@ def convert_markdown_to_epub(
         # 2. 提取 YAML 元数据
         metadata, content = extract_frontmatter(content)
         
-        # 3. 处理图片
+        # 3. 处理图片（★ 含尺寸注入）
         img_processor = ImageProcessor(md_file, img_dir)
         content, img_count, image_files = img_processor.process_markdown_images(content)
         if log_callback:
-            log_callback(f"✅ 图片处理完成: {img_count}个")
+            size_info = ""
+            if HAS_PILLOW and img_count > 0:
+                size_info = "（已注入原始尺寸）"
+            elif not HAS_PILLOW and img_count > 0:
+                size_info = "（Pillow 未安装，跳过尺寸注入）"
+            log_callback(f"✅ 图片处理完成: {img_count}个{size_info}")
         
         # 4. 处理 Mermaid 图表
         mermaid_ok = find_executable("mmdc") is not None or find_executable("npx") is not None
@@ -841,8 +899,6 @@ def convert_markdown_to_epub(
         html = add_first_line_indent(html, indent_size='2em')
         
         # 8. 插入标题
-        # html, final_title = insert_article_title(html, metadata)
-        
         if use_yaml_title:
             html, final_title = insert_article_title(html, metadata)
         else:
@@ -870,5 +926,5 @@ def convert_markdown_to_epub(
 
 # ==================== 元信息 ====================
 __author__ = "YQJ"
-__version__ = "1.3.0"
-__date__ = "2026.05.17"
+__version__ = "1.4.0"
+__date__ = "2026.05.23"

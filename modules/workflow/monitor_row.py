@@ -46,6 +46,7 @@ class StepType(Enum):
     REPAIR = "repair"
     MD2EPUB = "md2epub"
     EPUB2PDF = "epub2pdf"
+    EPUB2DOCX = "epub2docx"
 
     @property
     def display_name(self) -> str:
@@ -53,9 +54,9 @@ class StepType(Enum):
             StepType.REPAIR: "MD修复",
             StepType.MD2EPUB: "MD转EPUB",
             StepType.EPUB2PDF: "EPUB转PDF",
+            StepType.EPUB2DOCX: "EPUB转Word",
         }
         return names.get(self, "")
-
 
 # ==================== 步骤状态条组件 ====================
 

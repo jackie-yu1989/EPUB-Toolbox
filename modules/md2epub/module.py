@@ -22,12 +22,14 @@ from PyQt6.QtWidgets import (
     QGroupBox, QRadioButton, QSpinBox, QCheckBox, QLineEdit,
     QFileDialog, QGridLayout, QMessageBox, QComboBox, QFrame
 )
-from PyQt6.QtCore import QThread, pyqtSignal, Qt
+from PyQt6.QtCore import QThread, pyqtSignal, Qt, QSettings
 
 from core.base_module import BaseModule
 from core.components import UnifiedFileListWidget, FileStatus, LogPanel
 from core.utils import check_pandoc, check_mermaid
 from core.theme_manager import ThemeManager
+# ★ 导入常量化配置键
+from core.config_keys import SettingsDomain, MD2EpubKey
 from .processor import convert_markdown_to_epub
 from modules.md_repair.processor import MarkdownTitleExtractor
 from core.components.file_list import DropHotzoneMixin
@@ -387,7 +389,7 @@ class ConversionWorker(QThread):
     def _open_folder(folder: Path):
         """跨平台打开文件夹"""
         try:
-            # ✅ 终极保险：强制转换为绝对路径，防止 Windows explorer 打开“文档”
+            # ✅ 终极保险：强制转换为绝对路径，防止 Windows explorer 打开"文档"
             folder = folder.resolve()
         except Exception:
             pass
@@ -416,7 +418,7 @@ class MD2EPUBModule(BaseModule):
     
     @property
     def module_name(self) -> str:
-        return "1-MD转EPUB"
+        return "2-MD转EPUB"
     
     @property
     def module_icon(self) -> str:
@@ -425,9 +427,8 @@ class MD2EPUBModule(BaseModule):
     @property
     def module_description(self) -> str:
         return (
-            "将 Markdown 文件转换为精美 EPUB 电子书。"
-            "外部 CSS 排版风格定制（自动发现），10种主题颜色。"
-            "YAML标题作为内部标题，YAML标题重命名，Mermaid图表渲染。"
+            "Markdown → EPUB 精美排版电子书。"
+            "外部CSS自动发现、10色主题、YAML标题重命名、Mermaid图表渲染。"
         )
     
     @property
@@ -837,6 +838,73 @@ class MD2EPUBModule(BaseModule):
             else:
                 self.log(f"📂 已打开 {opened_count} 个临时文件夹", "INFO")
     
+    # ★ ==================== 配置持久化（新增） ====================
+    
+    def get_config(self) -> dict:
+        """收集 UI 上的所有设置"""
+        return {
+            MD2EpubKey.CSS_STYLE: self._get_selected_css_style(),
+            MD2EpubKey.COLOR_KEY: self.color_combo.currentData(),
+            MD2EpubKey.MAX_THREADS: self.worker_spin.value(),
+            MD2EpubKey.KEEP_TEMP: self.keep_temp_cb.isChecked(),
+            MD2EpubKey.AUTO_OPEN: self.auto_open_cb.isChecked(),
+            MD2EpubKey.RENAME_WITH_TITLE: self.rename_with_title_cb.isChecked(),
+            MD2EpubKey.USE_YAML_TITLE: self.use_yaml_title_cb.isChecked(),
+            MD2EpubKey.OUTPUT_DIR: str(self.output_dir) if self.output_dir else None,
+        }
+
+    def _load_config(self):
+        """从 QSettings 读取并应用到 UI"""
+        settings = QSettings(SettingsDomain.EPUB_TOOLBOX, SettingsDomain.SETTINGS)
+        cfg = settings.value(MD2EpubKey.CONFIG, {})
+        if not cfg:
+            return
+        
+        css_style = cfg.get(MD2EpubKey.CSS_STYLE, "clean")
+        if hasattr(self, 'css_buttons') and css_style in self.css_buttons:
+            self.css_buttons[css_style].setChecked(True)
+        
+        color_key = cfg.get(MD2EpubKey.COLOR_KEY, "blue")
+        if hasattr(self, 'color_combo'):
+            idx = self.color_combo.findData(color_key)
+            if idx >= 0:
+                self.color_combo.setCurrentIndex(idx)
+        
+        if hasattr(self, 'worker_spin'):
+            self.worker_spin.setValue(cfg.get(MD2EpubKey.MAX_THREADS, 4))
+        if hasattr(self, 'keep_temp_cb'):
+            self.keep_temp_cb.setChecked(cfg.get(MD2EpubKey.KEEP_TEMP, False))
+        if hasattr(self, 'auto_open_cb'):
+            self.auto_open_cb.setChecked(cfg.get(MD2EpubKey.AUTO_OPEN, False))
+        if hasattr(self, 'rename_with_title_cb'):
+            self.rename_with_title_cb.setChecked(cfg.get(MD2EpubKey.RENAME_WITH_TITLE, False))
+        if hasattr(self, 'use_yaml_title_cb'):
+            self.use_yaml_title_cb.setChecked(cfg.get(MD2EpubKey.USE_YAML_TITLE, True))
+        
+        output_dir_str = cfg.get(MD2EpubKey.OUTPUT_DIR)
+        if output_dir_str:
+            self.output_dir = Path(output_dir_str)
+            if hasattr(self, 'output_dir_edit'):
+                self.output_dir_edit.setText(output_dir_str)
+
+    def _save_config(self):
+        """保存设置到 QSettings"""
+        settings = QSettings(SettingsDomain.EPUB_TOOLBOX, SettingsDomain.SETTINGS)
+        settings.setValue(MD2EpubKey.CONFIG, self.get_config())
+
+    def on_activate(self):
+        """模块被激活（切换到此标签页）时调用"""
+        self._load_config()
+        self.log(f"已切换到 {self.module_name}", "INFO")
+
+    def on_deactivate(self):
+        """模块失去焦点（切换到其他模块或关闭窗口）时调用"""
+        self._save_config()
+        if getattr(self, 'is_processing', False):
+            self.stop_processing()
+    
+    # ★ ==================== 配置持久化结束 ====================
+    
     # ==================== 核心处理逻辑 ====================
     
     def start_processing(self, files: List[Path] = None, **kwargs) -> bool:
@@ -1017,6 +1085,9 @@ class MD2EPUBModule(BaseModule):
         success_count = sum(1 for r in results if r['status'] == 'success')
         failed_count = len(results) - success_count
         
+        # ★ 保存用户设置
+        self._save_config()
+        
         self.log("")
         self.log("=" * 60)
         self.log(f"转换完成！成功: {success_count}, 失败: {failed_count}", "SUCCESS")
@@ -1075,5 +1146,5 @@ class MD2EPUBModule(BaseModule):
 
 # ==================== 元信息 ====================
 __author__ = "YQJ"
-__version__ = "1.3.1"
-__date__ = "2026.05.22"
+__version__ = "1.4.0"
+__date__ = "2026.05.23"

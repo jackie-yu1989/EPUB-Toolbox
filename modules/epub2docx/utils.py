@@ -1,4 +1,10 @@
-"""DOCX 后处理工具 - 将软回车 (^l) 转换为硬段落 (^p) | 生产级稳定版"""
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+DOCX 后处理工具 - 将软回车 (^l) 转换为硬段落 (^p) 
+"""
+
 from pathlib import Path
 from docx import Document
 from docx.oxml.ns import qn
@@ -66,3 +72,8 @@ def _split_paragraph_at_br(p_elem, br, run):
 
     if br.getparent() is not None: br.getparent().remove(br)
     p_elem.addnext(new_p)
+
+# ==================== 元信息 ====================
+__author__ = "YQJ"
+__version__ = "1.1.0"
+__date__ = "2026.05.23"

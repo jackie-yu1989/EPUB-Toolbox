@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
 """
 监视面板 - 主对话框
 工作流可视化追踪界面，提供文件流水线行列表、总体进度、日志查看
@@ -22,8 +21,10 @@ from PyQt6.QtGui import QFont, QColor
 
 from core.utils import open_file_location
 from modules.workflow.module import WORKFLOW_MODES
-from core.config_keys import MDRepairKey
 
+# ★ 导入常量化配置键及工作流专用常量
+from core.config_keys import MDRepairKey
+from .constants import StepKey, ModeKey
 from .monitor_row import FilePipelineRow, StepStatus, StepType
 from .monitor_worker import MonitorWorkflowWorker, MonitorWorkerSignals
 from .monitor_row_config import RowRepairConfigDialog
@@ -31,18 +32,21 @@ from modules.workflow.pipeline_state import make_pipeline_key
 
 # ==================== 状态映射 ====================
 
-# 步骤名到 StepType 的映射
+# ★ 步骤名到 StepType 的映射，键名使用常量
 STEP_NAME_TO_TYPE = {
-    'repair': StepType.REPAIR,
-    'md2epub': StepType.MD2EPUB,
-    'epub2pdf': StepType.EPUB2PDF,
+    StepKey.REPAIR: StepType.REPAIR,
+    StepKey.MD2EPUB: StepType.MD2EPUB,
+    StepKey.EPUB2PDF: StepType.EPUB2PDF,
+    StepKey.EPUB2DOCX: StepType.EPUB2DOCX,
 }
 
-# 模式对应的步骤列表
+# ★ 模式对应的步骤列表，键名使用常量
 MODE_STEPS = {
-    'repair_to_epub': [StepType.REPAIR, StepType.MD2EPUB],
-    'md_to_pdf': [StepType.MD2EPUB, StepType.EPUB2PDF],
-    'full': [StepType.REPAIR, StepType.MD2EPUB, StepType.EPUB2PDF],
+    ModeKey.REPAIR_TO_EPUB: [StepType.REPAIR, StepType.MD2EPUB],
+    ModeKey.MD_TO_PDF: [StepType.MD2EPUB, StepType.EPUB2PDF],
+    ModeKey.MD_TO_DOCX: [StepType.MD2EPUB, StepType.EPUB2DOCX],
+    ModeKey.FULL_TO_PDF: [StepType.REPAIR, StepType.MD2EPUB, StepType.EPUB2PDF],
+    ModeKey.FULL_TO_DOCX: [StepType.REPAIR, StepType.MD2EPUB, StepType.EPUB2DOCX],
 }
 
 
@@ -50,7 +54,7 @@ MODE_STEPS = {
 
 class MonitorPanelDialog(QDialog):
     """工作流监视面板 — 主对话框
-
+    
     功能：
         - 展示每个文件的流水线状态（3 个步骤状态条）
         - 支持行独立修复配置（⚙️ 按钮）
@@ -67,12 +71,12 @@ class MonitorPanelDialog(QDialog):
 
     def __init__(self, parent=None, workflow_module=None):
         """初始化监视面板
-
+        
         Args:
             parent: 父级窗口
             workflow_module: WorkflowModule 实例（用于获取配置和文件列表）
         """
-
+        
         super().__init__(parent)
         self._last_worker_id = None    # ★ 提前初始化
         self._synced_main_results = False  # ★ 防止重复同步 all_results
@@ -88,7 +92,6 @@ class MonitorPanelDialog(QDialog):
         # Worker
         self.monitor_worker: Optional[MonitorWorkflowWorker] = None
         self._is_running = False
-        # self._paused = False
         self._start_time = 0.0
 
         # 统计
@@ -97,7 +100,7 @@ class MonitorPanelDialog(QDialog):
         self._completed_files = 0
 
         # 日志缓存（用于刷新）
-
+        
         self.setWindowTitle("监视面板 🔄 组合工作流")
         self.setMinimumSize(1100, 680)
         self.resize(1200, 780)
@@ -224,7 +227,8 @@ class MonitorPanelDialog(QDialog):
 
         # 模式显示
         mode_key = self._get_mode_key()
-        mode_info = WORKFLOW_MODES.get(mode_key, WORKFLOW_MODES['full'])
+        # ★ 使用常量获取模式信息
+        mode_info = WORKFLOW_MODES.get(mode_key, WORKFLOW_MODES[ModeKey.FULL_TO_PDF])
         self.mode_label = QLabel(f"模式: {mode_info['icon']} {mode_info['name']}")
         self.mode_label.setStyleSheet("font-size: 12px; font-weight: bold; color: #2c3e50;")
         layout.addWidget(self.mode_label)
@@ -364,6 +368,7 @@ class MonitorPanelDialog(QDialog):
 
         # 步骤标题
         mode_key = self._get_mode_key()
+        # ★ 使用常量获取步骤列表
         steps = MODE_STEPS.get(mode_key, [StepType.REPAIR, StepType.MD2EPUB, StepType.EPUB2PDF])
         for step in steps:
             label = QLabel(f"<b>{step.display_name}</b>")
@@ -371,7 +376,6 @@ class MonitorPanelDialog(QDialog):
             layout.addWidget(label, 1)
 
         return header
-
 
     def _create_overall_progress(self) -> QWidget:
         """创建总体进度区域"""
@@ -413,7 +417,7 @@ class MonitorPanelDialog(QDialog):
         )
         self.scope_hint.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.scope_hint.setStyleSheet(
-            "font-size: 10px; color: #999; padding: 2px; "
+            "font-size: 10px; color: #999; padding: 2px;  "
             "background: transparent;"
         )
         self.scope_hint.setWordWrap(True)
@@ -549,6 +553,7 @@ class MonitorPanelDialog(QDialog):
             return
 
         mode_key = self._get_mode_key()
+        # ★ 使用常量获取步骤列表
         steps = MODE_STEPS.get(mode_key, [StepType.REPAIR, StepType.MD2EPUB, StepType.EPUB2PDF])
 
         self._total_steps = len(files) * len(steps)
@@ -608,8 +613,6 @@ class MonitorPanelDialog(QDialog):
             file_path = Path(file_path_str)
             unique_key = make_pipeline_key(file_path)
             outputs = r.get('outputs', {})
-            # # ★ 调试
-            # self._append_log(f"[调试-完成] file={file_path.name} | outputs={outputs}", "INFO")
             state = self.pipeline_states.get(unique_key)
             row = self.row_widgets.get(unique_key)
             if not state or not row:
@@ -663,7 +666,8 @@ class MonitorPanelDialog(QDialog):
         """获取当前选中的工作流模式"""
         if self.workflow_module:
             return self.workflow_module._get_selected_mode()
-        return 'full'
+        # ★ 返回常量
+        return ModeKey.FULL_TO_PDF
 
     def _restore_ui_from_pipeline(self):
         """从 pipeline_states 恢复行状态和底部进度"""
@@ -690,10 +694,10 @@ class MonitorPanelDialog(QDialog):
                     file_exists = output_path and Path(output_path).exists()
                     status = StepStatus.COMPLETED if file_exists else StepStatus.COMPLETED_CLEANED
                     row.update_step(step_type, status, output_path=output_path,
-                                elapsed=step_state.get('elapsed', 0))
+                                 elapsed=step_state.get('elapsed', 0))
                 elif status_str == 'failed':
                     row.update_step(step_type, StepStatus.FAILED,
-                                error=step_state.get('error_message', ''))
+                                 error=step_state.get('error_message', ''))
         
         # 恢复进度统计
         completed_steps = 0
@@ -732,13 +736,12 @@ class MonitorPanelDialog(QDialog):
                 if widget.isMinimized():
                     widget.showNormal()
                 widget.setWindowState(
-                    widget.windowState() & ~Qt.WindowState.WindowMinimized
+                    widget.windowState()  & ~Qt.WindowState.WindowMinimized
                 )
                 widget.show()
                 widget.activateWindow()
                 widget.raise_()
                 break
-
 
     # ==================== 工具栏事件 ====================
 
@@ -764,13 +767,6 @@ class MonitorPanelDialog(QDialog):
 
     def _on_start_all(self):
         """开始/继续所有处理 — 跳过已全部完成的文件"""
-        # if self._paused:
-        #     self._paused = False
-        #     self.start_all_btn.setText("▶ 全部开始")
-        #     self.pause_all_btn.setText("⏸ 全部暂停")
-        #     self._append_log("▶ 继续处理...", "INFO")
-        #     return
-
         if self._is_running:
             return
 
@@ -880,10 +876,6 @@ class MonitorPanelDialog(QDialog):
         steps = state.get('steps', {})
         step_state = steps.get(step_type) or steps.get(step_type.value, {})
 
-        # # ★ 调试
-        # self._append_log(f"[调试] preview_step: file={file_path.name} | step={step_type.value} | "
-        #                  f"output_path={step_state.get('output_path', 'N/A') if step_state else 'step_state=None'}", "INFO")
-
         if not step_state or not step_state.get('output_path'):
             QMessageBox.warning(self, "提示", "该步骤没有可预览的产物")
             return
@@ -902,15 +894,15 @@ class MonitorPanelDialog(QDialog):
             self._preview_epub(output)
         elif step_type == StepType.EPUB2PDF:
             self._preview_pdf(output)
+        # ★ 处理 Word 步骤预览
+        elif step_type == StepType.EPUB2DOCX:
+            self._preview_docx(output)
 
     def _on_rollback_step(self, file_path: Path, step_type: StepType):
         """回滚某步骤：仅删除该步骤产物，只重置该步骤状态"""
         key = make_pipeline_key(file_path)
         state = self.pipeline_states.get(key, {})
         step_state = state.get('steps', {}).get(step_type)
-
-        # # ★ 调试
-        # self._append_log(f"[调试-回滚] key={key[-50:]} | state_found={bool(state)} | step_state_found={bool(step_state)}", "INFO")
 
         if not step_state:
             return
@@ -945,7 +937,6 @@ class MonitorPanelDialog(QDialog):
 
         self._append_log(
             f"🗑️ {file_path.name}: 已回滚「{step_name}」（下游未受影响）", "INFO")
-
 
     def _on_retry_step(self, file_path: Path, step_type: StepType):
         """重试失败的步骤"""
@@ -1021,7 +1012,6 @@ class MonitorPanelDialog(QDialog):
                 row.set_all_waiting()
 
         self._is_running = True
-        # self._paused = False
         self._start_time = time.time()
         self._completed_steps = 0
         self._completed_files = 0
@@ -1036,23 +1026,25 @@ class MonitorPanelDialog(QDialog):
         epub_css = self.workflow_module._get_epub_css()
         pdf_margins = self.workflow_module._get_pdf_margins()
 
+        # ★ 使用常量构建 step_workers
         step_workers = {
-            'repair': self.workflow_module.step_spins['repair'].value(),
-            'md2epub': self.workflow_module.step_spins['md2epub'].value(),
-            'epub2pdf': self.workflow_module.step_spins['epub2pdf'].value(),
+            StepKey.REPAIR: self.workflow_module.step_spins[StepKey.REPAIR].value(),
+            StepKey.MD2EPUB: self.workflow_module.step_spins[StepKey.MD2EPUB].value(),
+            StepKey.EPUB2PDF: self.workflow_module.step_spins[StepKey.EPUB2PDF].value(),
+            StepKey.EPUB2DOCX: self.workflow_module.step_spins[StepKey.EPUB2DOCX].value(),
         }
 
-        self._append_log("=" * 50)
-        self._append_log(f"🚀 启动工作流: {WORKFLOW_MODES[mode_key]['name']}")
-        self._append_log(f"📊 文件数: {len(files)}, 步骤数: {len(MODE_STEPS[mode_key])}")
-        self._append_log(f"📂 输出模式: {'统一目录' if self.workflow_module.output_dir else '跟随源文件'}")
-        if self.row_configs:
-            self._append_log(f"⚙️ 独立配置: {len(self.row_configs)} 个文件")
-        self._append_log("=" * 50)
+        # ★ 收集 Word 参数
+        docx_page_size = "a4"
+        if hasattr(self.workflow_module, 'docx_page_size_group'):
+            docx_btn = self.workflow_module.docx_page_size_group.checkedButton()
+            if docx_btn:
+                docx_page_size = docx_btn.property("size_key")
+        
+        docx_fix_soft_breaks = self.workflow_module.docx_fix_soft_breaks_cb.isChecked()
 
-        # 创建 Worker — ★ 传入 file_paths（Path 列表）
         self.monitor_worker = MonitorWorkflowWorker(
-            files=files,  # ★ files 现在是 List[Path]
+            files=files,
             workflow_mode=mode_key,
             output_dir=self.workflow_module.output_dir,
             global_repair_config=repair_config,
@@ -1064,6 +1056,8 @@ class MonitorPanelDialog(QDialog):
             use_yaml_title=self.workflow_module.use_yaml_title_cb.isChecked(),
             step_workers=step_workers,
             row_configs=self.workflow_module.panel_get_all_row_configs() if self.workflow_module else {},
+            docx_page_size=docx_page_size,
+            docx_fix_soft_breaks=docx_fix_soft_breaks,
         )
 
         # 连接信号
@@ -1142,7 +1136,7 @@ class MonitorPanelDialog(QDialog):
         self._completed_steps = completed_steps
         self._completed_files = completed_files
         self._update_overall_progress(completed_steps, total_steps,
-                                       completed_files, remaining_seconds)
+                                        completed_files, remaining_seconds)
 
     def _on_worker_log(self, message: str, level: str):
         """Worker 日志回调"""
@@ -1174,7 +1168,6 @@ class MonitorPanelDialog(QDialog):
             for r in results:
                 if r not in self.workflow_module.all_results:
                     self.workflow_module.all_results.append(r)
-
 
         # 同步结果到主模块
         if self.workflow_module:
@@ -1208,8 +1201,8 @@ class MonitorPanelDialog(QDialog):
         total_files = len(self.row_widgets)
         failed = total_files - files_done - (completed // max(1, len(MODE_STEPS.get(self._get_mode_key(), []))))
         self.stats_label.setText(
-            f"✅ {files_done}/{total_files} 文件完成  |  "
-            f"📊 {completed}/{total} 步骤完成  |  "
+            f"✅ {files_done}/{total_files} 文件完成  |   "
+            f"📊 {completed}/{total} 步骤完成  |   "
             f"⏱ 已耗时 {elapsed_str}"
         )
 
@@ -1298,6 +1291,20 @@ class MonitorPanelDialog(QDialog):
         else:
             import subprocess
             subprocess.run(['xdg-open', str(file_path)])
+    
+    def _preview_docx(self, file_path: Path):
+        """预览 Word（用系统默认编辑器打开）"""
+        if not file_path.exists():
+            QMessageBox.warning(self, "提示", "Word 文件不存在")
+            return
+        if sys.platform == 'win32':
+            os.startfile(str(file_path))
+        elif sys.platform == 'darwin':
+            import subprocess
+            subprocess.run(['open', str(file_path)])
+        else:
+            import subprocess
+            subprocess.run(['xdg-open', str(file_path)])
 
     # ==================== 修复预览（独立配置调试） ====================
 
@@ -1376,14 +1383,13 @@ class MonitorPanelDialog(QDialog):
             if key in row_config:
                 merged[key] = row_config[key]
         
-        # formula_config 嵌套覆盖
+        # ★ formula_config 嵌套覆盖（使用常量）
         if MDRepairKey.FORMULA_CONFIG in row_config:
             if MDRepairKey.FORMULA_CONFIG not in merged:
                 merged[MDRepairKey.FORMULA_CONFIG] = {}
             merged[MDRepairKey.FORMULA_CONFIG].update(row_config[MDRepairKey.FORMULA_CONFIG])
         
         return merged
-
 
     def _diff_repair_config(self, global_config: Dict, new_config: Dict) -> Dict:
         """对比新旧配置，只保留与全局不同的项（稀疏存储）
@@ -1414,7 +1420,6 @@ class MonitorPanelDialog(QDialog):
             sparse[MDRepairKey.FORMULA_CONFIG] = sparse_fc
         
         return sparse
-
 
     # ==================== 辅助方法 ====================
 
@@ -1477,7 +1482,6 @@ class MonitorPanelDialog(QDialog):
             self._refresh_rows()
         event.acceptProposedAction()
 
-
     def _refresh_rows(self):
         """清空并重建所有行"""
         self._selected_rows.clear()  # ★ 清空选中状态，避免引用已删除的 widget
@@ -1508,7 +1512,6 @@ class MonitorPanelDialog(QDialog):
 
         # 重新填充
         self._populate_rows()
-
 
     # ==================== 窗口事件 ====================
 
@@ -1652,7 +1655,6 @@ class MonitorPanelDialog(QDialog):
                 continue
         return found
 
-
     def _extract_files_from_urls(self, urls: list) -> list:
         """从剪贴板 URL 列表提取 .md 文件"""
         from pathlib import Path
@@ -1667,7 +1669,6 @@ class MonitorPanelDialog(QDialog):
                 for md_file in path.rglob("*.md"):
                     found.append(md_file)
         return found
-
 
     def _add_files_to_pipeline(self, files: list):
         """去重后添加到主模块并刷新行"""
@@ -1690,8 +1691,6 @@ class MonitorPanelDialog(QDialog):
         if added > 0:
             self._append_log(f"📋 粘贴 {added} 个文件", "INFO")
             self._refresh_rows()
-
-    # monitor_panel.py — 新增 _on_remove_file 方法
 
     def _on_remove_file(self, file_path: Path):
         """右键删除文件：同步主模块文件列表 + 刷新监视面板行"""
@@ -1729,8 +1728,6 @@ class MonitorPanelDialog(QDialog):
             self.pipeline_states.pop(key, None)
             self.row_widgets.pop(key, None)
             self._refresh_rows()
-
-    # monitor_panel.py — 新增方法
 
     def _on_rollback_all(self):
         """全部回滚：清除所有产物并重置状态"""
@@ -1869,8 +1866,7 @@ class MonitorPanelDialog(QDialog):
 
         default_name = f"epub_monitor_log_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
         file_path, _ = QFileDialog.getSaveFileName(
-            self, "保存日志", default_name, "文本文件 (*.txt);;所有文件 (*.*)"
-        )
+            self, "保存日志", default_name, "文本文件 (*.txt);;所有文件 (*.*)")
 
         if not file_path:
             return
@@ -1926,9 +1922,8 @@ class MonitorPanelDialog(QDialog):
     def _sync_running_results(self, running: list):
         """将 Worker 的中间结果同步到 pipeline_states 并刷新 UI"""
         self._on_main_worker_finished(running, is_final=False)
-        # 不需要手动恢复 _is_running 和按钮状态了，_on_main_worker_finished 已经跳过
 
 # ==================== 元信息 ====================
 __author__ = "YQJ"
-__version__ = "1.2.0"
-__date__ = "2026.05.09"
+__version__ = "1.2.1"
+__date__ = "2026.05.23"

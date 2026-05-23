@@ -378,10 +378,10 @@ class EPUBToolboxHub(QMainWindow):
     def _register_modules(self):
         module_classes = [
             WorkflowModule,
-            MD2EPUBModule,
-            EPUB2PDFModule,
             MDRepairModule,
-            EPUB2DOCXModule
+            MD2EPUBModule,
+            EPUB2DOCXModule,
+            EPUB2PDFModule,
         ]
         for module_class in module_classes:
             module = module_class()
@@ -405,7 +405,7 @@ class EPUBToolboxHub(QMainWindow):
     def _setup_ui(self):
         self.setWindowTitle(f"{__app_name__} v{__version__}")
         self.setMinimumSize(1020, 680)
-        self.resize(1120, 680)
+        self.resize(1120, 780) # 默认高度设置
         
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
@@ -541,9 +541,9 @@ class EPUBToolboxHub(QMainWindow):
         self.module_desc_hint.setWordWrap(True)
         self.module_desc_hint.setStyleSheet("""
             #moduleDescHint {
-                font-size: 10pt;
+                font-size: 10.5pt;
                 color: #2c3e50;
-                line-height: 1.5;
+                line-height: 1.6;
             }
         """)
         desc_layout.addWidget(self.module_desc_hint)
@@ -1015,6 +1015,7 @@ class EPUBToolboxHub(QMainWindow):
         return None
 
     def _clear_all_settings(self):
+        """清除所有用户数据并支持一键重启应用默认设置"""
         reply = QMessageBox.question(
             self, "清除用户数据",
             "将清除所有保存的设置，包括：\n"
@@ -1028,35 +1029,62 @@ class EPUBToolboxHub(QMainWindow):
         if reply != QMessageBox.StandardButton.Yes:
             return
         
+        # 重置托盘模式为默认值
         self.close_to_tray = self.DEFAULT_CLOSE_TO_TRAY
         self.tray_action.setChecked(self.DEFAULT_CLOSE_TO_TRAY)
 
+        # 1. 清除主窗口设置（含所有模块配置键）
         main_settings = QSettings(SettingsDomain.EPUB_TOOLBOX, SettingsDomain.SETTINGS)
         main_settings.clear()
-        self.settings.remove(SettingsKey.STARTUP_MODULE)
         
+        # 2. 清除 MD 修复配置
         repair_settings = QSettings(SettingsDomain.EPUB_TOOLBOX, SettingsDomain.MD_REPAIR)
         repair_settings.clear()
         
+        # 3. 清除工作流独立域名（兼容旧版）
         workflow_settings = QSettings(SettingsDomain.EPUB_TOOLBOX, SettingsDomain.WORKFLOW)
         workflow_settings.clear()
         
+        # 4. 清除独立版残留（兼容旧版）
         standalone_settings = QSettings("MDFormulaFixer", "SettingsV8")
         standalone_settings.clear()
         
-        self.log_panel.log("🗑️ 已清除所有用户数据，重启后生效", "SUCCESS")
-        QMessageBox.information(
-            self, "完成",
-            "用户数据已清除。\n建议重启程序以应用默认设置。"
-        )
+        # ★ 强制同步到磁盘，确保内存缓存被刷新
+        main_settings.sync()
+        repair_settings.sync()
+        workflow_settings.sync()
+        standalone_settings.sync()
         
-        # 清理缓存目录
-
+        # 5. 清理缓存目录（MathJax 缓存等）
         cache_dir = Path(QStandardPaths.writableLocation(
             QStandardPaths.StandardLocation.CacheLocation
         ))
         if cache_dir.exists():
             shutil.rmtree(cache_dir, ignore_errors=True)
+        
+        self.log_panel.log("🗑️ 已清除所有用户数据", "SUCCESS")
+        
+        # ★ 提供一键重启选项，确保默认设置立即生效
+        restart_reply = QMessageBox.question(
+            self, "重启程序",
+            "用户数据已清除。\n\n"
+            "由于 QSettings 存在内存缓存，建议立即重启程序\n"
+            "以确保所有模块恢复到默认设置。\n\n"
+            "是否立即重启？",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.Yes
+        )
+        
+        if restart_reply == QMessageBox.StandardButton.Yes:
+            self._is_force_quit = True
+            self.close()
+            # 使用 os.execv 原地替换当前进程，实现干净重启
+            os.execv(sys.executable, [sys.executable] + sys.argv)
+        else:
+            QMessageBox.information(
+                self, "提示",
+                "用户数据已清除。\n请手动重启程序以应用默认设置。"
+            )
 
     # ==================== 关闭与清理 ====================
 
@@ -1210,6 +1238,10 @@ class EPUBToolboxHub(QMainWindow):
 
 def main():
     """主函数 - 带启动画面版本"""
+
+    # ★ 抑制 QThreadStorage 在非优雅退出后的调试警告
+    os.environ.setdefault('QT_LOGGING_RULES', 'qt.thread.storage=false')
+
     app = QApplication(sys.argv)
 
     # ★ 清理 PyInstaller 单文件模式残留的临时目录

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+
 """
 EPUB转DOCX - 核心处理逻辑
 基于 Calibre ebook-convert 命令行工具
@@ -10,7 +11,7 @@ import sys
 import subprocess
 import logging
 from pathlib import Path
-from typing import Tuple, Dict
+from typing import Tuple
 
 from core.utils import find_executable
 
@@ -23,6 +24,13 @@ if sys.platform == 'win32':
     _STARTUP_INFO = subprocess.STARTUPINFO()
     _STARTUP_INFO.dwFlags |= subprocess.STARTF_USESHOWWINDOW
     _STARTUP_INFO.wShowWindow = subprocess.SW_HIDE
+
+# ★ Calibre DOCX 转换固定参数集中管理
+CALIBRE_DOCX_ARGS = [
+    "--docx-no-toc",
+    "--pretty-print",
+]
+
 
 def convert_epub_to_docx(
     epub_file: Path,
@@ -53,8 +61,7 @@ def convert_epub_to_docx(
         str(epub_file),
         str(output_docx),
         f"--docx-page-size={page_size}",
-        "--docx-no-toc",
-        "--pretty-print",
+        *CALIBRE_DOCX_ARGS,
     ]
 
     try:
@@ -93,7 +100,8 @@ def convert_epub_to_docx(
         logger.error(f"转换异常: {epub_file.name} - {e}")
         return False, str(e), time.time() - start_time
 
+
 # ==================== 元信息 ====================
 __author__ = "YQJ"
-__version__ = "1.0.0"
-__date__ = "2026.05.22"
+__version__ = "1.0.1"
+__date__ = "2026.05.23"

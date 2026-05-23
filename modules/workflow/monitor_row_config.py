@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
 """
 监视面板 - 行独立修复配置对话框
 为单个文件提供独立的 MD 修复设置，覆盖全局配置
@@ -86,7 +85,7 @@ class RowRepairConfigDialog(QDialog):
 
         self.checkboxes: Dict[str, QCheckBox] = {}
         self._global_values: Dict[str, bool] = {}
-
+ 
         self.setWindowTitle(f"⚙️ {file_path.name} — 独立修复设置")
         self.setMinimumWidth(520)
         self.setMaximumWidth(560)
@@ -102,7 +101,7 @@ class RowRepairConfigDialog(QDialog):
         layout.setContentsMargins(12, 12, 12, 12)
 
         # 标题
-        title = QLabel(f"📝 独立修复设置")
+        title = QLabel("📝 独立修复设置")
         title.setFont(QFont("Microsoft YaHei", 13, QFont.Weight.Bold))
         layout.addWidget(title)
 
@@ -261,27 +260,28 @@ class RowRepairConfigDialog(QDialog):
 
     def _load_global_defaults(self):
         """从全局配置载入默认值"""
-        fc = self.global_config.get('formula_config', {})
+        # ★ 使用常量替代硬编码 "formula_config"
+        fc = self.global_config.get(MDRepairKey.FORMULA_CONFIG, {})
 
         # 顶层配置项
-        self._global_values['clean_newlines'] = self.global_config.get('clean_extra_newlines', False)
-        self._global_values['add_space_after_inline'] = self.global_config.get('add_space_after_inline', False)
-        self._global_values['inline_to_display'] = self.global_config.get('inline_to_display', False)
-        self._global_values['image_caption'] = self.global_config.get('image_caption_enabled', False)
-        self._global_values['fix_encoding'] = self.global_config.get('fix_encoding', False)
-        self._global_values['escape_isolated_dollars'] = self.global_config.get('escape_isolated_dollars', False)
+        self._global_values['clean_newlines'] = self.global_config.get(MDRepairKey.CLEAN_EXTRA_NEWLINES, False)
+        self._global_values['add_space_after_inline'] = self.global_config.get(MDRepairKey.ADD_SPACE_AFTER_INLINE, False)
+        self._global_values['inline_to_display'] = self.global_config.get(MDRepairKey.INLINE_TO_DISPLAY, False)
+        self._global_values['image_caption'] = self.global_config.get(MDRepairKey.IMAGE_CAPTION_ENABLED, False)
+        self._global_values['fix_encoding'] = self.global_config.get(MDRepairKey.FIX_ENCODING, False)
+        self._global_values['escape_isolated_dollars'] = self.global_config.get(MDRepairKey.ESCAPE_ISOLATED_DOLLARS, False)
 
         # 公式级配置项
-        self._global_values['subsup_fix'] = fc.get('subsup_fix', False)
-        self._global_values['func_normalize'] = fc.get('func_normalize', False)
-        self._global_values['matrix_newline_remove'] = fc.get('matrix_newline_remove', False)
-        self._global_values['bracket_check'] = fc.get('bracket_check', False)
-        self._global_values['markdown_escape_inline'] = fc.get('markdown_escape_inline', False)
-        self._global_values['matrix_add_multiplication'] = fc.get('matrix_add_multiplication', False)
-        self._global_values['dl_commands_to_text'] = fc.get('dl_commands_to_text', False)
-        self._global_values['remove_size_commands'] = fc.get('remove_size_commands', False)
-        self._global_values['bm_to_vec'] = fc.get('bm_to_vec', False)
-        self._global_values['respect_macros'] = fc.get('respect_macros', False)
+        self._global_values['subsup_fix'] = fc.get(MDRepairKey.SUBSUP_FIX, False)
+        self._global_values['func_normalize'] = fc.get(MDRepairKey.FUNC_NORMALIZE, False)
+        self._global_values['matrix_newline_remove'] = fc.get(MDRepairKey.MATRIX_NEWLINE_REMOVE, False)
+        self._global_values['bracket_check'] = fc.get(MDRepairKey.BRACKET_CHECK, False)
+        self._global_values['markdown_escape_inline'] = fc.get(MDRepairKey.MARKDOWN_ESCAPE_INLINE, False)
+        self._global_values['matrix_add_multiplication'] = fc.get(MDRepairKey.MATRIX_ADD_MULTIPLICATION, False)
+        self._global_values['dl_commands_to_text'] = fc.get(MDRepairKey.DL_COMMANDS_TO_TEXT, False)
+        self._global_values['remove_size_commands'] = fc.get(MDRepairKey.REMOVE_SIZE_COMMANDS, False)
+        self._global_values['bm_to_vec'] = fc.get(MDRepairKey.BM_TO_VEC, False)
+        self._global_values['respect_macros'] = fc.get(MDRepairKey.RESPECT_MACROS, False)
 
         # ★ 设置所有复选框，优先使用已有独立配置的值
         for key, cb in self.checkboxes.items():
@@ -317,6 +317,7 @@ class RowRepairConfigDialog(QDialog):
             if field in self._existing_row_config:
                 return self._existing_row_config[field]
         else:
+            # ★ 使用常量替代硬编码 "formula_config"
             fc = self._existing_row_config.get(MDRepairKey.FORMULA_CONFIG, {})
             if key in fc:
                 return fc[key]
@@ -386,9 +387,10 @@ class RowRepairConfigDialog(QDialog):
                 if key in top_mapping:
                     self.result_config[top_mapping[key]] = current_val
                 else:
-                    if 'formula_config' not in self.result_config:
-                        self.result_config['formula_config'] = {}
-                    self.result_config['formula_config'][key] = current_val
+                    # ★ 使用常量替代硬编码 "formula_config"
+                    if MDRepairKey.FORMULA_CONFIG not in self.result_config:
+                        self.result_config[MDRepairKey.FORMULA_CONFIG] = {}
+                    self.result_config[MDRepairKey.FORMULA_CONFIG][key] = current_val
 
         self.accept()
 
@@ -403,5 +405,5 @@ class RowRepairConfigDialog(QDialog):
 
 # ==================== 元信息 ====================
 __author__ = "YQJ"
-__version__ = "1.1.0"
-__date__ = "2026.05.09"
+__version__ = "1.1.1"
+__date__ = "2026.05.23"

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
 """
 工作流模块 - PyQt6 UI 封装
 支持三种自动处理流程
@@ -13,7 +12,10 @@ import logging
 from pathlib import Path
 from typing import List, Tuple, Optional, Dict, Any
 from threading import Event
-from core.config_keys import SettingsDomain, MDRepairKey
+
+# ★ 导入常量化配置键及工作流专用常量
+from core.config_keys import SettingsDomain, MDRepairKey, WorkflowKey
+from .constants import StepKey, ModeKey
 
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
@@ -27,7 +29,7 @@ from core.base_module import BaseModule
 from core.components import UnifiedFileListWidget, FileStatus, LogPanel
 from core.theme_manager import ThemeManager
 from core.components.file_list import DropHotzoneMixin
-from .processor import run_repair_step, run_md2epub_step, run_epub2pdf_step
+from .processor import run_repair_step, run_md2epub_step, run_epub2pdf_step, run_epub2docx_step
 from modules.workflow.pipeline_state import resolve_source_file, make_pipeline_key
 
 logger = logging.getLogger(__name__)
@@ -42,26 +44,38 @@ _STOP_SENTINEL = object()   # ★ 结束信号（所有文件处理完毕）
 # ==================== 工作流模式 ====================
 
 WORKFLOW_MODES = {
-    'repair_to_epub': {
-        'name': '（修复+转换） 修复 MD  → 转为 EPUB',
-        'icon': '📝➡📖',
-        'steps': ['repair', 'md2epub'],
-        'desc': '输入Markdown → 修复Markdown → 转换EPUB电子书'
-    },
-    'md_to_pdf': {
-        'name': '（转换+导出） 转为 EPUB → 导出 PDF',
-        'icon': '📖➡📄',
-        'steps': ['md2epub', 'epub2pdf'],
+
+    ModeKey.MD_TO_PDF: {
+        'name': '（产出PDF） MD直转EPUB → 导出PDF',
+        'icon': '📖➡📕',
+        'steps': [StepKey.MD2EPUB, StepKey.EPUB2PDF],
         'desc': '输入Markdown → 转换EPUB电子书 → 导出PDF文档'
     },
-    'full': {
-        'name': '（完整工作流）修复 MD → 转换 EPUB → 导出 PDF',
-        'icon': '🔄➡🔄',
-        'steps': ['repair', 'md2epub', 'epub2pdf'],
+    ModeKey.FULL_TO_PDF: {
+        'name': '（产出PDF） 修复MD → 间转EPUB → 导出PDF',
+        'icon': '📝➡📖➡📕',
+        'steps': [StepKey.REPAIR, StepKey.MD2EPUB, StepKey.EPUB2PDF],
         'desc': '输入Markdown → 修复Markdown → 转换EPUB电子书 → 导出PDF文档'
+    },
+    ModeKey.MD_TO_DOCX: {
+        'name': '（产出Word） MD直转EPUB → 导出Word',
+        'icon': '📖➡📄',
+        'steps': [StepKey.MD2EPUB, StepKey.EPUB2DOCX],
+        'desc': '输入Markdown → 转换EPUB电子书 → 导出Word文档'
+    },
+    ModeKey.FULL_TO_DOCX: {
+        'name': '（产出Word） 修复MD → 间转EPUB → 导出Word',
+        'icon': '📝➡📖➡📄',
+        'steps': [StepKey.REPAIR, StepKey.MD2EPUB, StepKey.EPUB2DOCX],
+        'desc': '输入Markdown → 修复Markdown → 转换EPUB电子书 → 导出Word文档'
+    },
+    ModeKey.REPAIR_TO_EPUB: {
+        'name': '（产出EPUB） 修复Markdown → 导出EPUB',
+        'icon': '📝➡📖',
+        'steps': [StepKey.REPAIR, StepKey.MD2EPUB],
+        'desc': '输入Markdown → 修复Markdown → 转换EPUB电子书'
     }
 }
-
 
 # ==================== 工作线程 ====================
 
@@ -96,7 +110,9 @@ class WorkflowWorker(QThread):
         max_workers: int = 4,
         use_yaml_title: bool = True,
         step_workers: Dict[str, int] = None,
-        show_page_numbers: bool = False
+        show_page_numbers: bool = False,
+        docx_page_size: str = "a4",
+        docx_fix_soft_breaks: bool = True
     ):
         super().__init__()
         self.files = files
@@ -107,16 +123,18 @@ class WorkflowWorker(QThread):
         self.pdf_margins = pdf_margins or {}
         self.keep_intermediate = keep_intermediate
         self.auto_open = auto_open
-        self._stop_event = Event()  # ★ 使用 Event 替代布尔标志
+        self._stop_event = Event()
         self.results = []
         self.max_workers = max_workers
         self.rename_by_title = rename_by_title
-        self.use_yaml_title = use_yaml_title  # ★ 新增
-        self.show_page_numbers = show_page_numbers  # ★ 新增        
+        self.use_yaml_title = use_yaml_title
+        self.show_page_numbers = show_page_numbers
+        self.step_workers = step_workers or {}
         
-        # ★ 新增：每个步骤的 worker 数量（未配置时使用 max_workers）
-        self.step_workers = step_workers or {}        
-        
+        # ★ 动态接收 Word 转换参数（严禁硬编码）
+        self.docx_page_size = docx_page_size
+        self.docx_fix_soft_breaks = docx_fix_soft_breaks
+
         if rename_by_title:
             from modules.md_repair.processor import MarkdownTitleExtractor
             self.title_extractor = MarkdownTitleExtractor()
@@ -147,10 +165,12 @@ class WorkflowWorker(QThread):
         all_output_paths = self._preprocess_output_paths(steps, total_files)
 
         # ====== 步骤函数定义 ======
+        # ★ 使用常量作为键名
         step_funcs = {
-            'repair': run_repair_step,
-            'md2epub': run_md2epub_step,
-            'epub2pdf': run_epub2pdf_step,
+            StepKey.REPAIR: run_repair_step,
+            StepKey.MD2EPUB: run_md2epub_step,
+            StepKey.EPUB2PDF: run_epub2pdf_step,
+            StepKey.EPUB2DOCX: run_epub2docx_step,
         }
 
         # ====== 流水线工作函数 ======
@@ -191,7 +211,6 @@ class WorkflowWorker(QThread):
 
                 # 获取预生成的输出路径
                 output_path = all_output_paths.get(file_idx, {}).get(step_name)
-
                 log_cb = lambda m: self.log_message.emit(f"     {m}", "INFO")
 
                 # 确保输出目录存在
@@ -200,26 +219,38 @@ class WorkflowWorker(QThread):
 
                 # 根据步骤类型传入正确的参数
                 try:
-                    if step_name == 'repair':
+                    # ★ 使用常量进行分支判断
+                    if step_name == StepKey.REPAIR:
                         kwargs = {'config': self.repair_config, 'log_callback': log_cb}
                         if output_path:
                             kwargs['output_filename'] = output_path.name
                         success, msg, output = step_func(current_file, out_dir, **kwargs)
 
-                    elif step_name == 'md2epub':
+                    elif step_name == StepKey.MD2EPUB:
                         kwargs = {'css': self.epub_css, 'log_callback': log_cb}
                         if output_path:
                             kwargs['output_epub'] = output_path
                         kwargs['use_yaml_title'] = self.use_yaml_title
                         success, msg, output = step_func(current_file, out_dir, **kwargs)
 
-                    elif step_name == 'epub2pdf':
+                    elif step_name == StepKey.EPUB2PDF:
                         kwargs = {'margins': self.pdf_margins, 'log_callback': log_cb}
                         if output_path:
                             kwargs['output_pdf'] = output_path
                         if self.show_page_numbers:
                             kwargs['show_page_numbers'] = True
                         success, msg, output = step_func(current_file, out_dir, **kwargs)
+
+                    elif step_name == StepKey.EPUB2DOCX:
+                        kwargs = {
+                            'page_size': self.docx_page_size,
+                            'fix_soft_breaks': self.docx_fix_soft_breaks,
+                            'log_callback': log_cb
+                        }
+                        if output_path:
+                            kwargs['output_docx'] = output_path
+                        success, msg, output = step_func(current_file, out_dir, **kwargs)
+
                     else:
                         continue
                 except Exception as e:
@@ -246,7 +277,7 @@ class WorkflowWorker(QThread):
                             'status': 'success',
                             'outputs': {step_name: str(output)}
                         })
-                    
+                     
                     output_queue.put((file_idx, file_result, output, out_dir))
 
                 else:
@@ -272,7 +303,6 @@ class WorkflowWorker(QThread):
         )
         executor_max = max(total_worker_count, self.max_workers)
         with ThreadPoolExecutor(max_workers=executor_max) as executor:
-
 
             for i, step_name in enumerate(steps):
                 step_count = self.step_workers.get(step_name, min(total_files, self.max_workers))
@@ -430,14 +460,17 @@ class WorkflowWorker(QThread):
             for i, step_name in enumerate(steps):
                 is_final = (i == len(steps) - 1)
                 
-                if step_name == 'repair':
-                    file_paths['repair'] = source_dir / f"{clean_base}_fixed.md"
-                elif step_name == 'md2epub':
-                    file_paths['md2epub'] = (
+                # ★ 使用常量进行步骤判断
+                if step_name == StepKey.REPAIR:
+                    file_paths[StepKey.REPAIR] = source_dir / f"{clean_base}_fixed.md"
+                elif step_name == StepKey.MD2EPUB:
+                    file_paths[StepKey.MD2EPUB] = (
                         final_dir if is_final else source_dir
                     ) / f"{clean_base}.epub"
-                elif step_name == 'epub2pdf':
-                    file_paths['epub2pdf'] = final_dir / f"{clean_base}.pdf"
+                elif step_name == StepKey.EPUB2PDF:
+                    file_paths[StepKey.EPUB2PDF] = final_dir / f"{clean_base}.pdf"
+                elif step_name == StepKey.EPUB2DOCX:
+                    file_paths[StepKey.EPUB2DOCX] = final_dir / f"{clean_base}.docx"
             
             all_output_paths[file_idx] = file_paths
         
@@ -499,10 +532,8 @@ class WorkflowModule(BaseModule):
     @property
     def module_description(self) -> str:
         return (
-            "自动串联 MD修复→MD转EPUB→EPUB转PDF 全流程，三种工作流模式。"
-            "流水线并行处理（哨兵对象模式），分步并行设置，中间/最终输出分离。"
-            "外部 CSS 风格定制，YAML标题重命名与内部标题，PDF页码设置。"
-            "📊 可视化监视面板：实时同步主界面进度，双工执行，行独立配置+修复预览，步骤回滚，中间文件清理，日志跨会话保留。"
+            "5种工作流模式，流水线并行+哨兵对象。"
+            "📊 监视面板：实时追踪、行独立配置、步骤回滚、中间文件清理。"
         )
     
     @property
@@ -510,8 +541,15 @@ class WorkflowModule(BaseModule):
         return ['.md']
     
     def on_activate(self):
-        """模块被激活时刷新 MD 修复设置按钮状态"""
+        """模块被激活时刷新 MD 修复设置按钮状态 + 加载配置"""
+        self._load_config()       # ★ 新增
         self._update_repair_hint()
+    
+    def on_deactivate(self):
+        """模块失去焦点时保存配置"""
+        self._save_config()       # ★ 新增
+        if getattr(self, 'is_processing', False):
+            self.stop_processing()
     
     def check_dependencies(self) -> Tuple[bool, str]:
         """检查三个步骤的依赖"""
@@ -540,6 +578,7 @@ class WorkflowModule(BaseModule):
     
     def create_ui(self, parent=None) -> QWidget:
         """创建模块 UI"""
+        # ★ 注意：settings 仍使用 WORKFLOW 域名读取 MD 修复配置（跨模块读取）
         self.settings = QSettings(SettingsDomain.EPUB_TOOLBOX, SettingsDomain.WORKFLOW)
         
         widget = QWidget(parent)
@@ -572,14 +611,9 @@ class WorkflowModule(BaseModule):
         self._pipeline_total_steps = 0
         self._pipeline_completed_steps = 0
         self._pipeline_completed_files = 0
-        self._pipeline_start_time = 0.0        
+        self._pipeline_start_time = 0.0
         
         self._update_repair_hint()
-
-        # # ★ 快捷键 Ctrl+J 打开监视面板
-        # from PyQt6.QtGui import QShortcut, QKeySequence
-        # monitor_shortcut = QShortcut(QKeySequence("Ctrl+J"), widget)
-        # monitor_shortcut.activated.connect(self._open_monitor_panel)
 
         return widget
 
@@ -699,10 +733,11 @@ class WorkflowModule(BaseModule):
         right_layout.setSpacing(10)
         right_layout.addWidget(self._create_repair_section())
         right_layout.addWidget(self._create_epub_section())
+        right_layout.addWidget(self._create_docx_section()) # ★ 新增 Docx 设置区
         right_layout.addWidget(self._create_pdf_section())
         right_layout.addStretch()
         
-        # 左&中列并排
+        # 左 &中列并排
         left_middle = QWidget()
         lm_layout = QVBoxLayout(left_middle)
         lm_layout.setContentsMargins(0, 0, 0, 0)
@@ -764,13 +799,13 @@ class WorkflowModule(BaseModule):
         self.mode_buttons = {}
 
         modes_data = [
-            ('repair_to_epub', '📝➡📖（修复+转换）',
-            '修复 Markdown 后，转为 EPUB'),
-            ('md_to_pdf', '📖➡📄（转换+导出）',
-            '转换 EPUB 后，导出为 PDF'),
-            ('full', '🔄➡🔄（完整工作流）',
-            '修复 MD → 转换 EPUB → 导出 PDF'),
+            (ModeKey.MD_TO_PDF, '生成 PDF ：📕-📖-⭕ ||', '直转 EPUB 后，导出为 PDF'),
+            (ModeKey.FULL_TO_PDF, '生成 PDF ：📕-📖-📝 ||', '修复 MD，间转 EPUB，导出 PDF'),
+            (ModeKey.MD_TO_DOCX, '生成Word：📄-📖-⭕ ||', '直转 EPUB 后，导出为 Word'),
+            (ModeKey.FULL_TO_DOCX, '生成Word：📄-📖-📝 ||', '修复 MD，间转 EPUB，导出 Word'),
+            (ModeKey.REPAIR_TO_EPUB, '生成EPUB：📖-📝-⭕ ||', '修复 Markdown 后，导出为 EPUB'),
         ]
+
 
         for mode_key, label_text, help_text in modes_data:
             row = QWidget()
@@ -789,10 +824,10 @@ class WorkflowModule(BaseModule):
 
             mode_layout.addWidget(row)
 
-        self.mode_buttons['repair_to_epub'].setChecked(True)
+        self.mode_buttons[ModeKey.REPAIR_TO_EPUB].setChecked(True)
 
         return mode_group
-    
+     
     def _create_epub_section(self) -> QGroupBox:
         """创建 EPUB 设置区域"""
         epub_group = QGroupBox("📖 EPUB 设置")
@@ -848,7 +883,7 @@ class WorkflowModule(BaseModule):
     
     def _create_pdf_section(self) -> QGroupBox:
         """创建 PDF 设置区域"""
-        pdf_group = QGroupBox("📄 PDF 设置")
+        pdf_group = QGroupBox("📕 PDF 设置")
         pdf_layout = QVBoxLayout(pdf_group)
         pdf_layout.setSpacing(6)
         
@@ -886,6 +921,42 @@ class WorkflowModule(BaseModule):
         pdf_layout.addWidget(self.workflow_show_page_numbers_cb)
         
         return pdf_group
+
+    def _create_docx_section(self) -> QGroupBox:
+        """创建 Word 设置区域（参照 PDF/EPUB 设置区风格）"""
+        docx_group = QGroupBox("📄 Word 设置")
+        docx_layout = QVBoxLayout(docx_group)
+        docx_layout.setSpacing(6)
+        
+        # 1. 页面尺寸单选组（扁平化布局）
+        page_size_layout = QHBoxLayout()
+        page_size_layout.setContentsMargins(0, 0, 0, 0)
+        page_size_layout.setSpacing(10)
+        
+        self.docx_page_size_group = QButtonGroup()
+        sizes = [("A4", "a4"), ("Letter", "letter"), ("B5", "b5"), ("A5", "a5")]
+        for text, key in sizes:
+            btn = QRadioButton(text)
+            btn.setProperty("size_key", key)
+            btn.setToolTip(f"输出 Word 页面尺寸：{text}")
+            self.docx_page_size_group.addButton(btn)
+            page_size_layout.addWidget(btn)
+            if key == "a4":  # 默认选中 A4
+                btn.setChecked(True)
+        
+        page_size_layout.addStretch()
+        docx_layout.addLayout(page_size_layout)
+
+        # 2. 软回车修复复选框
+        self.docx_fix_soft_breaks_cb = QCheckBox("✨ 自动修复软回车 (↓ → ¶)")
+        self.docx_fix_soft_breaks_cb.setChecked(True)
+        self.docx_fix_soft_breaks_cb.setToolTip(
+            "转换后自动将 Word 软回车(<w:br>)拆分为标准硬段落(<w:p>)，\n"
+            "彻底解决段落破碎、无法统一调整格式的问题。"
+        )
+        docx_layout.addWidget(self.docx_fix_soft_breaks_cb)
+        
+        return docx_group
     
     def _create_repair_section(self) -> QGroupBox:
         """创建 MD 修复设置区域"""
@@ -917,16 +988,20 @@ class WorkflowModule(BaseModule):
         workers_layout = QGridLayout()
         workers_layout.setSpacing(4)
         
+        # ★ 使用常量初始化
         step_defaults = {
-            'repair': min(2, cpu_count),
-            'md2epub': default_workers,
-            'epub2pdf': default_workers,
+            StepKey.REPAIR: min(2, cpu_count),
+            StepKey.MD2EPUB: default_workers,
+            StepKey.EPUB2PDF: default_workers,
+            StepKey.EPUB2DOCX: default_workers,
         }
         
+        # ★ 使用常量作为键名
         step_labels = {
-            'repair': "📝 MD公式修复",
-            'md2epub': "📖 MD转EPUB",
-            'epub2pdf': "📄 EPUB转PDF",
+            StepKey.REPAIR: "📝 MD公式修复",
+            StepKey.MD2EPUB: "📖 MD转EPUB",
+            StepKey.EPUB2DOCX: "📄 EPUB转Word",
+            StepKey.EPUB2PDF: "📕 EPUB转PDF",
         }
         
         self.step_spins = {}
@@ -939,7 +1014,7 @@ class WorkflowModule(BaseModule):
             spin.setValue(step_defaults[step_key])
             spin.setFixedWidth(60)
             spin.setToolTip(
-                "CPU密集型，建议较少" if step_key == 'repair'
+                "CPU密集型，建议较少" if step_key == StepKey.REPAIR
                 else "子进程等待，可适当多开"
             )
             self.step_spins[step_key] = spin
@@ -1019,7 +1094,8 @@ class WorkflowModule(BaseModule):
         for mode_key, rb in self.mode_buttons.items():
             if rb.isChecked():
                 return mode_key
-        return 'full'
+        # ★ 返回常量
+        return ModeKey.FULL_TO_PDF
     
     def _get_epub_css(self) -> str:
         tm = ThemeManager()
@@ -1054,9 +1130,10 @@ class WorkflowModule(BaseModule):
         saved = settings.value(MDRepairKey.CONFIG_V4)
         
         if saved and isinstance(saved, dict):
-            if 'formula_config' not in saved:
+            # ★ 使用常量替代硬编码 "formula_config"
+            if MDRepairKey.FORMULA_CONFIG not in saved:
                 from modules.md_repair.processor import ConfigurableFormulaFixer
-                saved['formula_config'] = ConfigurableFormulaFixer.get_default_config()
+                saved[MDRepairKey.FORMULA_CONFIG] = ConfigurableFormulaFixer.get_default_config()
             return saved
         
         from modules.md_repair.processor import DEFAULT_REPAIR_CONFIG
@@ -1096,6 +1173,96 @@ class WorkflowModule(BaseModule):
         except Exception:
             self.repair_config_btn.setText("🔧 公式修复")
     
+    # ★ ==================== 配置持久化（新增） ====================
+    
+    def get_config(self) -> dict:
+        """收集 UI 上的所有设置"""
+        return {
+            WorkflowKey.MODE: self._get_selected_mode(),
+            WorkflowKey.STEP_WORKERS: {
+                StepKey.REPAIR: self.step_spins[StepKey.REPAIR].value(),
+                StepKey.MD2EPUB: self.step_spins[StepKey.MD2EPUB].value(),
+                StepKey.EPUB2PDF: self.step_spins[StepKey.EPUB2PDF].value(),
+                StepKey.EPUB2DOCX: self.step_spins[StepKey.EPUB2DOCX].value(),
+            },
+            WorkflowKey.RENAME_BY_TITLE: self.rename_by_title_cb.isChecked(),
+            WorkflowKey.USE_YAML_TITLE: self.use_yaml_title_cb.isChecked(),
+            WorkflowKey.KEEP_INTERMEDIATE: self.keep_intermediate_cb.isChecked(),
+            WorkflowKey.AUTO_OPEN: self.auto_open_cb.isChecked(),
+            WorkflowKey.SHOW_PAGE_NUMBERS: self.workflow_show_page_numbers_cb.isChecked(),
+            WorkflowKey.OUTPUT_DIR: str(self.output_dir) if self.output_dir else None,
+            WorkflowKey.EPUB_CSS_STYLE: self._get_selected_css_style(),
+            WorkflowKey.EPUB_COLOR_KEY: self.color_combo.currentData(),
+            WorkflowKey.PDF_PRESET_KEY: (
+                self.pdf_preset_group.checkedButton().property("preset_key")
+                if self.pdf_preset_group.checkedButton() else "1"
+            ),
+        }
+
+    def _load_config(self):
+        """从 QSettings 读取并应用到 UI"""
+        settings = QSettings(SettingsDomain.EPUB_TOOLBOX, SettingsDomain.SETTINGS)
+        cfg = settings.value(WorkflowKey.CONFIG, {})
+        if not cfg:
+            return
+        
+        # 恢复工作流模式
+        mode = cfg.get(WorkflowKey.MODE, ModeKey.REPAIR_TO_EPUB)
+        if mode in self.mode_buttons:
+            self.mode_buttons[mode].setChecked(True)
+        
+        # 恢复分步并行数
+        step_workers = cfg.get(WorkflowKey.STEP_WORKERS, {})
+        for step_key, spin in self.step_spins.items():
+            if step_key in step_workers:
+                spin.setValue(step_workers[step_key])
+        
+        # 恢复复选框
+        if hasattr(self, 'rename_by_title_cb'):
+            self.rename_by_title_cb.setChecked(cfg.get(WorkflowKey.RENAME_BY_TITLE, False))
+        if hasattr(self, 'use_yaml_title_cb'):
+            self.use_yaml_title_cb.setChecked(cfg.get(WorkflowKey.USE_YAML_TITLE, True))
+        if hasattr(self, 'keep_intermediate_cb'):
+            self.keep_intermediate_cb.setChecked(cfg.get(WorkflowKey.KEEP_INTERMEDIATE, True))
+        if hasattr(self, 'auto_open_cb'):
+            self.auto_open_cb.setChecked(cfg.get(WorkflowKey.AUTO_OPEN, False))
+        if hasattr(self, 'workflow_show_page_numbers_cb'):
+            self.workflow_show_page_numbers_cb.setChecked(cfg.get(WorkflowKey.SHOW_PAGE_NUMBERS, False))
+        
+        # 恢复输出目录
+        output_dir_str = cfg.get(WorkflowKey.OUTPUT_DIR)
+        if output_dir_str:
+            self.output_dir = Path(output_dir_str)
+            if hasattr(self, 'output_dir_edit'):
+                self.output_dir_edit.setText(output_dir_str)
+        
+        # 恢复 EPUB CSS 风格
+        css_style = cfg.get(WorkflowKey.EPUB_CSS_STYLE, "clean")
+        if hasattr(self, 'css_buttons') and css_style in self.css_buttons:
+            self.css_buttons[css_style].setChecked(True)
+        
+        # 恢复 EPUB 颜色
+        color_key = cfg.get(WorkflowKey.EPUB_COLOR_KEY, "blue")
+        if hasattr(self, 'color_combo'):
+            idx = self.color_combo.findData(color_key)
+            if idx >= 0:
+                self.color_combo.setCurrentIndex(idx)
+        
+        # 恢复 PDF 预设
+        pdf_preset = cfg.get(WorkflowKey.PDF_PRESET_KEY, "1")
+        if hasattr(self, 'pdf_preset_group'):
+            for btn in self.pdf_preset_group.buttons():
+                if btn.property("preset_key") == pdf_preset:
+                    btn.setChecked(True)
+                    break
+
+    def _save_config(self):
+        """保存设置到 QSettings"""
+        settings = QSettings(SettingsDomain.EPUB_TOOLBOX, SettingsDomain.SETTINGS)
+        settings.setValue(WorkflowKey.CONFIG, self.get_config())
+    
+    # ★ ==================== 配置持久化结束 ====================
+    
     # ====== 处理流程 ======
     
     def start_processing(self, files: List[Path] = None, **kwargs) -> bool:
@@ -1129,8 +1296,7 @@ class WorkflowModule(BaseModule):
                         QMessageBox.information(
                             None, "提示",
                             "所有文件都已处理完成！\n\n"
-                            "如需重新处理，请勾选「忽略状态」选项。"
-                        )
+                            "如需重新处理，请勾选「忽略状态」选项。")
                         return False
                 else:
                     QMessageBox.warning(None, "警告", "请先添加文件")
@@ -1177,11 +1343,21 @@ class WorkflowModule(BaseModule):
         self.log("=" * 60)
         
         # 构建步骤 worker 配置
+        # ★ 使用常量作为键名
         step_workers = {
-            'repair': self.step_spins['repair'].value(),
-            'md2epub': self.step_spins['md2epub'].value(),
-            'epub2pdf': self.step_spins['epub2pdf'].value(),
+            StepKey.REPAIR: self.step_spins[StepKey.REPAIR].value(),
+            StepKey.MD2EPUB: self.step_spins[StepKey.MD2EPUB].value(),
+            StepKey.EPUB2PDF: self.step_spins[StepKey.EPUB2PDF].value(),
+            StepKey.EPUB2DOCX: self.step_spins[StepKey.EPUB2DOCX].value(),
         }
+
+        # ★ 收集 Word 转换参数
+        docx_page_size = "a4"
+        docx_btn = self.docx_page_size_group.checkedButton()
+        if docx_btn:
+            docx_page_size = docx_btn.property("size_key")
+            
+        docx_fix_soft_breaks = self.docx_fix_soft_breaks_cb.isChecked()
 
         self.worker = WorkflowWorker(
             files=files,
@@ -1195,9 +1371,11 @@ class WorkflowModule(BaseModule):
             rename_by_title=self.rename_by_title_cb.isChecked(),
             use_yaml_title=self.use_yaml_title_cb.isChecked(),
             step_workers=step_workers,
-            show_page_numbers=self.workflow_show_page_numbers_cb.isChecked(),  
+            show_page_numbers=self.workflow_show_page_numbers_cb.isChecked(),
+            # ★ 传递 Docx 参数
+            docx_page_size=docx_page_size,
+            docx_fix_soft_breaks=docx_fix_soft_breaks,
         )
-
 
         self.worker.progress_updated.connect(self._on_progress_updated)
         self.worker.file_status_signal.connect(self._on_file_status_changed)
@@ -1241,17 +1419,20 @@ class WorkflowModule(BaseModule):
         self.log("")
         self.log("=" * 60)
         self.log(f"✅ 工作流完成！成功: {success}, 失败: {failed}",
-                "SUCCESS" if failed == 0 else "WARNING")
+                 "SUCCESS" if failed == 0 else "WARNING")
         
         if failed > 0:
             self.log("失败列表:", "WARNING")
             for r in results:
                 if r['status'] == 'failed':
                     self.log(f"  - {Path(r['file']).name}: {r.get('error', '未知')}",
-                            "ERROR")
+                             "ERROR")
         self.log("=" * 60)
         
         self.update_progress(100, f"完成 - 成功: {success}, 失败: {failed}")
+        
+        # ★ 保存用户设置
+        self._save_config()
         
         if self.force_reprocess_cb.isChecked():
             self.force_reprocess_cb.setChecked(False)
@@ -1365,9 +1546,9 @@ class WorkflowModule(BaseModule):
 
         dialog = MonitorPanelDialog(parent=None, workflow_module=self)
         dialog.exec()
-        self.log("📊 监视面板已关闭", "INFO")    
+        self.log("📊 监视面板已关闭", "INFO")
 
 # ==================== 元信息 ====================
 __author__ = "YQJ"
-__version__ = "1.4.1"
-__date__ = "2026.05.17"
+__version__ = "1.5.0"
+__date__ = "2026.05.23"

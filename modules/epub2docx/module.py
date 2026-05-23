@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+
 """
 EPUB转DOCX模块 - PyQt6界面封装
 提供 EPUB 到 DOCX 的批量转换功能
 """
+
 import os
 import sys
 import time
@@ -12,21 +14,25 @@ from pathlib import Path
 from typing import List, Tuple, Optional, Dict
 from concurrent.futures import ThreadPoolExecutor, as_completed, Future
 from threading import Event
+
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QGroupBox, QRadioButton, QSpinBox, QCheckBox, QLineEdit,
-    QFileDialog, QFrame, QButtonGroup
+    QFileDialog, QFrame, QButtonGroup, QMessageBox
 )
 from PyQt6.QtCore import QThread, pyqtSignal, Qt, QSettings
-from PyQt6.QtGui import QIntValidator
+
 from core.base_module import BaseModule
 from core.components import UnifiedFileListWidget, FileStatus, LogPanel
 from core.utils import check_calibre
+# ★ 导入常量化配置键
+from core.config_keys import SettingsDomain, EPUB2DocxKey
 from .processor import convert_epub_to_docx
 from core.components.file_list import DropHotzoneMixin
 
 # 模块级日志记录器
 logger = logging.getLogger(__name__)
+
 
 class ConversionWorker(QThread):
     """EPUB 转 DOCX 工作线程"""
@@ -70,7 +76,6 @@ class ConversionWorker(QThread):
             if not new_path.exists():
                 return new_path
 
-        import time
         timestamp = int(time.time() * 1000)
         return parent / f"{stem}_{timestamp}{suffix}"
 
@@ -219,7 +224,7 @@ class ConversionWorker(QThread):
     def _open_folder(folder: Path):
         """跨平台打开文件夹"""
         try:
-            # ✅ 终极保险：强制转换为绝对路径，彻底杜绝 Windows explorer 打开“文档”
+            # ✅ 终极保险：强制转换为绝对路径，彻底杜绝 Windows explorer 打开"文档"
             folder = folder.resolve()
         except Exception:
             pass
@@ -235,15 +240,17 @@ class ConversionWorker(QThread):
             import subprocess
             subprocess.run(['xdg-open', folder_str])
 
+
 class EPUB2DOCXModule(BaseModule):
     """EPUB 转 DOCX 模块"""
+
     @property
     def module_id(self) -> str:
         return "epub2docx"
 
     @property
     def module_name(self) -> str:
-        return "4-EPUB转Word"
+        return "3-EPUB转Word"
 
     @property
     def module_icon(self) -> str:
@@ -252,9 +259,8 @@ class EPUB2DOCXModule(BaseModule):
     @property
     def module_description(self) -> str:
         return (
-            "将 EPUB 电子书转换为 Word 文档。"
-            "支持软回车(^l)自动合并为标准段落(^p)、多线程并行处理。"
-            "UI风格全局统一（扁平化页面尺寸单选），选项状态离焦自动记忆。"
+            "EPUB → Word 批量转换。"
+            "软回车(^l)自动转硬段落(^p)、页面尺寸预设、离焦状态记忆。"
         )
 
     @property
@@ -360,7 +366,7 @@ class EPUB2DOCXModule(BaseModule):
         # ✅ 1. 页面尺寸 (扁平化布局)
         page_size_layout = QHBoxLayout()
         page_size_layout.setContentsMargins(0, 0, 0, 0)
-        page_size_layout.setSpacing(15) # 增加按钮间距
+        page_size_layout.setSpacing(15)
         
         page_size_label = QLabel("页面尺寸：")
         page_size_layout.addWidget(page_size_label)
@@ -371,7 +377,7 @@ class EPUB2DOCXModule(BaseModule):
         sizes = [("A4", "a4"), ("Letter", "letter"), ("B5", "b5"), ("A5", "a5")]
         for text, key in sizes:
             btn = QRadioButton(text)
-            btn.setProperty("size_key", key) # 绑定内部 key
+            btn.setProperty("size_key", key)
             self.page_size_btn_group.addButton(btn)
             page_size_layout.addWidget(btn)
             
@@ -396,7 +402,7 @@ class EPUB2DOCXModule(BaseModule):
 
         # 4. 并行线程数
         workers_layout = QHBoxLayout()
-        workers_layout.addWidget(QLabel("并行线程数:"))
+        workers_layout.addWidget(QLabel("并行线程数: "))
         
         cpu_count = os.cpu_count() or 4
         self.worker_spin = QSpinBox()
@@ -475,12 +481,74 @@ class EPUB2DOCXModule(BaseModule):
             self.output_dir = None
             self.output_dir_edit.setStyleSheet("")
 
+    def get_config(self) -> dict:
+        """收集 UI 上的所有设置"""
+        # 1. 获取页面尺寸
+        page_size = "a4"
+        if hasattr(self, 'page_size_btn_group'):
+            btn = self.page_size_btn_group.checkedButton()
+            if btn:
+                page_size = btn.property("size_key")
+        
+        # 2. 获取其他选项
+        fix_soft_breaks = self.fix_soft_breaks_cb.isChecked()
+        max_threads = self.worker_spin.value()
+        auto_open = self.auto_open_cb.isChecked()
+        
+        # 3. 获取输出目录
+        output_dir = getattr(self, 'output_dir', None)
+
+        # ★ 使用常量替代硬编码字符串
+        return {
+            EPUB2DocxKey.PAGE_SIZE: page_size,
+            EPUB2DocxKey.FIX_SOFT_BREAKS: fix_soft_breaks,
+            EPUB2DocxKey.MAX_THREADS: max_threads,
+            EPUB2DocxKey.AUTO_OPEN: auto_open,
+            EPUB2DocxKey.OUTPUT_DIR: str(output_dir) if output_dir else None
+        }
+
+    def _load_config(self):
+        """从 QSettings 读取并应用到 UI"""
+        # ★ 使用统一的 SettingsDomain + 常量键名
+        settings = QSettings(SettingsDomain.EPUB_TOOLBOX, SettingsDomain.SETTINGS)
+        cfg = settings.value(EPUB2DocxKey.CONFIG, {})
+        if not cfg:
+            return
+
+        # 恢复页面尺寸
+        page_size = cfg.get(EPUB2DocxKey.PAGE_SIZE, "a4")
+        if hasattr(self, 'page_size_btn_group'):
+            for btn in self.page_size_btn_group.buttons():
+                if btn.property("size_key") == page_size:
+                    btn.setChecked(True)
+                    break
+
+        # 恢复复选框和数值
+        if hasattr(self, 'fix_soft_breaks_cb'):
+            self.fix_soft_breaks_cb.setChecked(cfg.get(EPUB2DocxKey.FIX_SOFT_BREAKS, True))
+        if hasattr(self, 'worker_spin'):
+            self.worker_spin.setValue(cfg.get(EPUB2DocxKey.MAX_THREADS, 4))
+        if hasattr(self, 'auto_open_cb'):
+            self.auto_open_cb.setChecked(cfg.get(EPUB2DocxKey.AUTO_OPEN, False))
+        
+        # 恢复输出目录
+        output_dir_str = cfg.get(EPUB2DocxKey.OUTPUT_DIR)
+        if output_dir_str:
+            self.output_dir = Path(output_dir_str)
+            if hasattr(self, 'output_dir_edit'):
+                self.output_dir_edit.setText(output_dir_str)
+
+    def _save_config(self):
+        """保存设置到 QSettings"""
+        # ★ 使用统一的 SettingsDomain + 常量键名
+        settings = QSettings(SettingsDomain.EPUB_TOOLBOX, SettingsDomain.SETTINGS)
+        settings.setValue(EPUB2DocxKey.CONFIG, self.get_config())
+
     def start_processing(self, files: List[Path] = None, **kwargs) -> bool:
         """开始批量转换"""
         if self.force_reprocess_cb.isChecked():
             all_files = self.file_list.get_all_files()
             if not all_files:
-                from PyQt6.QtWidgets import QMessageBox
                 QMessageBox.warning(None, "警告", "请先添加要转换的 EPUB 文件")
                 return False
             self.file_list.reset_all_status()
@@ -491,7 +559,6 @@ class EPUB2DOCXModule(BaseModule):
             if not files:
                 all_files = self.file_list.get_all_files()
                 if all_files:
-                    from PyQt6.QtWidgets import QMessageBox
                     QMessageBox.information(
                         None, "提示",
                         "所有文件都已转换完成！\n"
@@ -499,13 +566,11 @@ class EPUB2DOCXModule(BaseModule):
                     )
                     return False
                 else:
-                    from PyQt6.QtWidgets import QMessageBox
                     QMessageBox.warning(None, "警告", "请先添加要转换的 EPUB 文件")
                     return False
 
         calibre_ok, _ = check_calibre()
         if not calibre_ok:
-            from PyQt6.QtWidgets import QMessageBox
             QMessageBox.critical(
                 None, "错误",
                 "未找到 Calibre 转换工具！\n"
@@ -515,7 +580,6 @@ class EPUB2DOCXModule(BaseModule):
             return False
 
         if self.output_dir_edit.text().strip() and not self.output_dir:
-            from PyQt6.QtWidgets import QMessageBox
             QMessageBox.warning(
                 None, "警告",
                 "输出路径无效，请检查路径是否正确，或清空使用默认目录"
@@ -527,26 +591,25 @@ class EPUB2DOCXModule(BaseModule):
         if self.progress_bar:
             self.progress_bar.setValue(0)
 
-        output_mode = "custom" if self.output_dir else "source"
+        config = self.get_config()
 
         self.log("=" * 60)
         self.log(f"开始批量转换 {len(files)} 个文件...")
-        self.log(f"输出模式: {'统一目录' if output_mode == 'custom' else '跟随源文件'}")
+        self.log(f"输出模式: {'统一目录' if self.output_dir else '跟随源文件'}")
         selected_btn = self.page_size_btn_group.checkedButton()
         self.log(f"页面尺寸: {selected_btn.text() if selected_btn else 'A4'}")
-        self.log(f"修复软回车: {'是' if self.fix_soft_breaks_cb.isChecked() else '否'}")
-        self.log(f"并行线程数: {self.worker_spin.value()}")
+        self.log(f"修复软回车: {'是' if config[EPUB2DocxKey.FIX_SOFT_BREAKS] else '否'}")
+        self.log(f"并行线程数: {config[EPUB2DocxKey.MAX_THREADS]}")
         self.log("=" * 60)
 
-        config = self.get_config()
         self.worker = ConversionWorker(
             input_files=files,
             output_mode="custom" if self.output_dir else "source",
             output_dir=self.output_dir,
-            page_size=config["page_size"],          # <--- 从配置读取
-            fix_soft_breaks=config["fix_soft_breaks"], # <--- 从配置读取
-            max_workers=config["max_threads"],      # <--- 从配置读取
-            auto_open=config["auto_open"]           # <--- 从配置读取
+            page_size=config[EPUB2DocxKey.PAGE_SIZE],
+            fix_soft_breaks=config[EPUB2DocxKey.FIX_SOFT_BREAKS],
+            max_workers=config[EPUB2DocxKey.MAX_THREADS],
+            auto_open=config[EPUB2DocxKey.AUTO_OPEN]
         )
 
         self.worker.progress_updated.connect(self._on_progress_updated)
@@ -566,7 +629,7 @@ class EPUB2DOCXModule(BaseModule):
     def _on_progress_updated(self, value: int, message: str, completed: int, total: int):
         if self.progress_bar:
             self.progress_bar.setValue(value)
-            self.update_progress(value, message)
+        self.update_progress(value, message)
 
     def _on_file_status_changed(self, file_path: Path, status: str):
         status_map = {
@@ -587,7 +650,7 @@ class EPUB2DOCXModule(BaseModule):
         success_count = sum(1 for r in results if r['status'] == 'success')
         failed_count = len(results) - success_count
 
-        # ✅ 添加此行：保存用户设置
+        # ✅ 保存用户设置
         self._save_config()
 
         self.log("")
@@ -602,73 +665,14 @@ class EPUB2DOCXModule(BaseModule):
         if self.force_reprocess_cb.isChecked():
             self.force_reprocess_cb.setChecked(False)
 
-        from PyQt6.QtWidgets import QMessageBox
         QMessageBox.information(
             None, "完成",
             f"转换任务已完成！\n成功: {success_count} 个\n失败: {failed_count} 个"
         )
 
-    def get_config(self) -> dict:
-        """收集 UI 上的所有设置"""
-        # 1. 获取页面尺寸
-        page_size = "a4"
-        if hasattr(self, 'page_size_btn_group'):
-            btn = self.page_size_btn_group.checkedButton()
-            if btn:
-                page_size = btn.property("size_key")
-        
-        # 2. 获取其他选项
-        fix_soft_breaks = self.fix_soft_breaks_cb.isChecked()
-        max_threads = self.worker_spin.value()
-        auto_open = self.auto_open_cb.isChecked()
-        
-        # 3. 获取输出目录
-        output_dir = getattr(self, 'output_dir', None)
-
-        return {
-            "page_size": page_size,
-            "fix_soft_breaks": fix_soft_breaks,
-            "max_threads": max_threads,
-            "auto_open": auto_open,
-            "output_dir": str(output_dir) if output_dir else None
-        }
-
-    def _load_config(self):
-        """从 QSettings 读取并应用到 UI"""
-        settings = QSettings("YQJ", "EPUB-Toolbox")
-        cfg = settings.value("epub2docx/config", {})
-        if not cfg: return
-
-        # 恢复页面尺寸
-        page_size = cfg.get("page_size", "a4")
-        if hasattr(self, 'page_size_btn_group'):
-            for btn in self.page_size_btn_group.buttons():
-                if btn.property("size_key") == page_size:
-                    btn.setChecked(True)
-                    break
-
-        # 恢复复选框和数值
-        if hasattr(self, 'fix_soft_breaks_cb'):
-            self.fix_soft_breaks_cb.setChecked(cfg.get("fix_soft_breaks", True))
-        if hasattr(self, 'worker_spin'):
-            self.worker_spin.setValue(cfg.get("max_threads", 4))
-        if hasattr(self, 'auto_open_cb'):
-            self.auto_open_cb.setChecked(cfg.get("auto_open", False))
-        
-        # 恢复输出目录
-        if cfg.get("output_dir"):
-            self.output_dir = Path(cfg["output_dir"])
-            if hasattr(self, 'output_dir_edit'):
-                self.output_dir_edit.setText(cfg["output_dir"])
-
-    def _save_config(self):
-        """保存设置到 QSettings"""
-        settings = QSettings("YQJ", "EPUB-Toolbox")
-        settings.setValue("epub2docx/config", self.get_config())
-
     def on_activate(self):
         """模块被激活（切换到此标签页）时调用"""
-        self._load_config()  # <--- 添加此行
+        self._load_config()
         self.log(f"已切换到 {self.module_name}", "INFO")
 
     def on_deactivate(self):
@@ -680,7 +684,8 @@ class EPUB2DOCXModule(BaseModule):
         if getattr(self, 'is_processing', False):
             self.stop_processing()
 
+
 # ==================== 元信息 ====================
 __author__ = "YQJ"
-__version__ = "1.1.0"
-__date__ = "2026.05.22"
+__version__ = "1.1.1"
+__date__ = "2026.05.23"

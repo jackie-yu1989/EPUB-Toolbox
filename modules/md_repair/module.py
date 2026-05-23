@@ -228,14 +228,16 @@ class RepairWorker(QThread):
     @staticmethod
     def _open_folder(folder: Path):
         """跨平台打开文件夹"""
+        try:
+            folder = folder.resolve()  
+        except Exception:
+            pass
         folder_str = str(folder)
         if sys.platform == 'win32':
             os.startfile(folder_str)
         elif sys.platform == 'darwin':
-            import subprocess
             subprocess.run(['open', folder_str])
         else:
-            import subprocess
             subprocess.run(['xdg-open', folder_str])
 
 
@@ -250,7 +252,7 @@ class MDRepairModule(BaseModule):
 
     @property
     def module_name(self) -> str:
-        return "3-MD公式修复"
+        return "1-Markdown修复"
 
     @property
     def module_icon(self) -> str:
@@ -259,11 +261,8 @@ class MDRepairModule(BaseModule):
     @property
     def module_description(self) -> str:
         return (
-            "修复 Markdown 文件中 LaTeX 公式格式错误。"
-            "16项可配置修复（不勾选=不修复），4套预设方案。"
-            "批量预检摘要与并排对比预览（Ctrl+Shift+L），"
-            "MathJax v3 离线实时渲染（缩放+换行）。"
-            "快速调整面板累积式调试（勾选自动生效），配置更新一键同步。"
+            "16项可配置修复，4套预设方案。"
+            "批量预检摘要 + 并排对比预览 + MathJax离线渲染 + 快速调整面板。"
         )
     
     @property
