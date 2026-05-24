@@ -262,7 +262,7 @@ class MDRepairModule(BaseModule):
     def module_description(self) -> str:
         return (
             "16项可配置修复，4套预设方案。"
-            "批量预检摘要 + 并排对比预览 + MathJax离线渲染 + 快速调整面板。"
+            "批量预检摘要 + 并排对比预览 + 快速调整面板。"
         )
     
     @property

@@ -318,7 +318,7 @@ class EPUB2PDFModule(BaseModule):
     def module_description(self) -> str:
         return (
             "EPUB → PDF 批量转换。"
-            "4种页边距预设、自定义字号、可选页码、多线程并行。"
+            "4种页边距预设、可选页码、多线程并行。"
         )
 
     

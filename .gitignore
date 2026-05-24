@@ -20,7 +20,11 @@ dist/
 build/
 *.spec
 *.iss
-.gitignore
+
+# 不上传文件
+standalone/
+upx/
+tests/
 
 # 说明文件
 Readme/

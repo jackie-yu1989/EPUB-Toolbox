@@ -2,7 +2,8 @@
 # -*- coding: utf-8 -*-
 """
 工作流模块 - PyQt6 UI 封装
-支持三种自动处理流程
+支持五种自动处理流程
+★ 新增：Word 排版预设支持
 """
 
 import os
@@ -77,24 +78,17 @@ WORKFLOW_MODES = {
     }
 }
 
+
 # ==================== 工作线程 ====================
 
 class WorkflowWorker(QThread):
-    """工作流执行线程 - 流水线并行架构
-    
-    使用 Queue + ThreadPoolExecutor 实现多步骤并行处理：
-        文件1在步骤2（转EPUB）时，文件2已在步骤1（修复），文件3排队中。
-    
-    通过哨兵对象区分：
-        _SKIP_SENTINEL: 上游步骤失败，跳过下游处理
-        _STOP_SENTINEL: 所有文件已处理完毕
-    """
+    """工作流执行线程 - 流水线并行架构"""
     
     progress_updated = pyqtSignal(int, str, int, int)
     file_status_signal = pyqtSignal(Path, str)
     log_message = pyqtSignal(str, str)
     finished_all = pyqtSignal(list)
-    step_state_changed = pyqtSignal(Path, str, dict)  # ★ 新增
+    step_state_changed = pyqtSignal(Path, str, dict)
     
     def __init__(
         self,
@@ -112,7 +106,8 @@ class WorkflowWorker(QThread):
         step_workers: Dict[str, int] = None,
         show_page_numbers: bool = False,
         docx_page_size: str = "a4",
-        docx_fix_soft_breaks: bool = True
+        docx_fix_soft_breaks: bool = True,
+        docx_preset: str = "book"      # ★ 新增：Word排版预设
     ):
         super().__init__()
         self.files = files
@@ -131,9 +126,10 @@ class WorkflowWorker(QThread):
         self.show_page_numbers = show_page_numbers
         self.step_workers = step_workers or {}
         
-        # ★ 动态接收 Word 转换参数（严禁硬编码）
+        # Word 转换参数
         self.docx_page_size = docx_page_size
         self.docx_fix_soft_breaks = docx_fix_soft_breaks
+        self.docx_preset = docx_preset  # ★ 新增
 
         if rename_by_title:
             from modules.md_repair.processor import MarkdownTitleExtractor
@@ -165,7 +161,6 @@ class WorkflowWorker(QThread):
         all_output_paths = self._preprocess_output_paths(steps, total_files)
 
         # ====== 步骤函数定义 ======
-        # ★ 使用常量作为键名
         step_funcs = {
             StepKey.REPAIR: run_repair_step,
             StepKey.MD2EPUB: run_md2epub_step,
@@ -182,44 +177,35 @@ class WorkflowWorker(QThread):
                 except Empty:
                     continue
 
-                # ★ 结束信号：转发给下游并退出
                 if item is _STOP_SENTINEL:
                     output_queue.put(_STOP_SENTINEL)
                     break
 
-                # ★ 跳过标记：上游失败，转发给下游
                 if item is _SKIP_SENTINEL:
                     output_queue.put(_SKIP_SENTINEL)
                     continue
 
                 file_idx, file_result, current_file, out_dir = item
 
-                # ★ 防御：如果 current_file 是 None，跳过
                 if current_file is None:
                     output_queue.put(_SKIP_SENTINEL)
                     continue
 
-                # ★ 始终使用原始文件路径（不受YAML重命名影响）
                 original_file = Path(file_result['file'])
 
-                # ★ 发射步骤开始状态 — 用原始文件！
                 self.step_state_changed.emit(original_file, step_name,
                     {"status": "processing", "progress": 0})
 
                 self.log_message.emit(
                     f"  [{step_name}] {Path(current_file).name}", "INFO")
 
-                # 获取预生成的输出路径
                 output_path = all_output_paths.get(file_idx, {}).get(step_name)
                 log_cb = lambda m: self.log_message.emit(f"     {m}", "INFO")
 
-                # 确保输出目录存在
                 if output_path:
                     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-                # 根据步骤类型传入正确的参数
                 try:
-                    # ★ 使用常量进行分支判断
                     if step_name == StepKey.REPAIR:
                         kwargs = {'config': self.repair_config, 'log_callback': log_cb}
                         if output_path:
@@ -245,6 +231,7 @@ class WorkflowWorker(QThread):
                         kwargs = {
                             'page_size': self.docx_page_size,
                             'fix_soft_breaks': self.docx_fix_soft_breaks,
+                            'font_preset': self.docx_preset,  # ★ 传递排版预设
                             'log_callback': log_cb
                         }
                         if output_path:
@@ -260,14 +247,11 @@ class WorkflowWorker(QThread):
                 if success and output:
                     file_result['outputs'][step_name] = str(output)
                     
-                    # ★ 发射步骤完成状态 — 用原始文件！
                     self.step_state_changed.emit(original_file, step_name,
                         {"status": "completed", "output_path": str(output), "elapsed": 0})
                     
-                    # ★ 实时更新 results，让监视面板能立即获取
                     if not hasattr(self, '_running_results'):
                         self._running_results = []
-                    # 避免重复
                     existing = [r for r in self._running_results if r['file'] == file_result['file']]
                     if existing:
                         existing[0]['outputs'][step_name] = str(output)
@@ -284,14 +268,12 @@ class WorkflowWorker(QThread):
                     file_result['status'] = 'failed'
                     file_result['error'] = msg
                     self.file_status_signal.emit(Path(file_result['file']), 'failed')
-                    # ★ 发射步骤失败状态 — 用原始文件！
                     self.step_state_changed.emit(original_file, step_name,
                         {"status": "failed", "error_message": msg, "elapsed": 0})             
                               
-                    # ★ 传递跳过标记到下游
                     output_queue.put(_SKIP_SENTINEL)
 
-        # ====== 创建队列（步骤间缓冲区） ======
+        # ====== 创建队列 ======
         queues = [Queue(maxsize=total_files + 1) for _ in range(len(steps) + 1)]
 
         # 启动每个步骤的工作线程池
@@ -337,7 +319,7 @@ class WorkflowWorker(QThread):
                     progress, f"准备中... {file_idx + 1}/{total_files}",
                     file_idx, total_files)
 
-            # ====== 收集最终结果（以文件数为准，不依赖哨兵计数） ======
+            # ====== 收集最终结果 ======
             completed = 0
             final_queue = queues[-1]
             total_to_collect = total_files
@@ -352,12 +334,10 @@ class WorkflowWorker(QThread):
                         completed, total_files)
                     continue
 
-                # ★ _SKIP_SENTINEL：上游步骤失败，计入已完成（不期待实际结果）
                 if item is _SKIP_SENTINEL:
                     total_to_collect -= 1
                     continue
 
-                # ★ _STOP_SENTINEL：忽略（新逻辑不依赖哨兵退出）
                 if item is _STOP_SENTINEL:
                     continue
 
@@ -382,10 +362,8 @@ class WorkflowWorker(QThread):
                     f"处理中... {completed}/{total_files}",
                     completed, total_files)
 
-            # ★ 所有文件结果已收集完毕，通知所有还在阻塞的 worker 退出
             self._stop_event.set()
 
-            # 等待所有工作线程结束
             for future in all_futures:
                 try:
                     future.result(timeout=5)
@@ -407,11 +385,9 @@ class WorkflowWorker(QThread):
             if self.output_dir:
                 self._open_folder(self.output_dir)
             else:
-                # 收集所有成功文件的最终产物所在目录并依次打开
                 opened = set()
                 for r in self.results:
                     if r['status'] == 'success':
-                        # 取最后一个步骤的输出作为最终产物
                         outputs = r.get('outputs', {})
                         if outputs:
                             last_output = list(outputs.values())[-1]
@@ -424,11 +400,7 @@ class WorkflowWorker(QThread):
         self.finished_all.emit(self.results)
     
     def _preprocess_output_paths(self, steps: List[str], total_files: int) -> Dict[int, Dict[str, Path]]:
-        """预处理所有文件的输出路径
-        
-        Returns:
-            {file_idx: {step_name: output_path}}
-        """
+        """预处理所有文件的输出路径"""
         all_output_paths = {}
         
         for file_idx, md_file in enumerate(self.files):
@@ -441,7 +413,6 @@ class WorkflowWorker(QThread):
             
             file_paths = {}
             
-            # 确定基础名称
             if self.rename_by_title and self.title_extractor:
                 base_name, title_used, extracted_title = self.title_extractor.generate_name(
                     md_file, source_dir
@@ -456,11 +427,9 @@ class WorkflowWorker(QThread):
             else:
                 clean_base = md_file.stem
             
-            # 判断每个步骤是中间还是最终输出
             for i, step_name in enumerate(steps):
                 is_final = (i == len(steps) - 1)
                 
-                # ★ 使用常量进行步骤判断
                 if step_name == StepKey.REPAIR:
                     file_paths[StepKey.REPAIR] = source_dir / f"{clean_base}_fixed.md"
                 elif step_name == StepKey.MD2EPUB:
@@ -481,11 +450,10 @@ class WorkflowWorker(QThread):
         if self.keep_intermediate:
             return
         
-        # 确定哪些步骤是中间步骤
         if len(steps) <= 1:
             return
         
-        intermediates = steps[:-1]  # 除最后一步外都是中间步骤
+        intermediates = steps[:-1]
         
         for file_idx in all_output_paths:
             for step in intermediates:
@@ -532,8 +500,8 @@ class WorkflowModule(BaseModule):
     @property
     def module_description(self) -> str:
         return (
-            "5种工作流模式，流水线并行+哨兵对象。"
-            "📊 监视面板：实时追踪、行独立配置、步骤回滚、中间文件清理。"
+            "5种工作流模式，流水线并行。"
+            "📊 监视面板：实时追踪、行独立配置、步骤回滚。"
         )
     
     @property
@@ -542,12 +510,12 @@ class WorkflowModule(BaseModule):
     
     def on_activate(self):
         """模块被激活时刷新 MD 修复设置按钮状态 + 加载配置"""
-        self._load_config()       # ★ 新增
+        self._load_config()
         self._update_repair_hint()
     
     def on_deactivate(self):
         """模块失去焦点时保存配置"""
-        self._save_config()       # ★ 新增
+        self._save_config()
         if getattr(self, 'is_processing', False):
             self.stop_processing()
     
@@ -578,7 +546,6 @@ class WorkflowModule(BaseModule):
     
     def create_ui(self, parent=None) -> QWidget:
         """创建模块 UI"""
-        # ★ 注意：settings 仍使用 WORKFLOW 域名读取 MD 修复配置（跨模块读取）
         self.settings = QSettings(SettingsDomain.EPUB_TOOLBOX, SettingsDomain.WORKFLOW)
         
         widget = QWidget(parent)
@@ -601,11 +568,11 @@ class WorkflowModule(BaseModule):
         # 状态变量
         self.output_dir: Optional[Path] = None
         self.worker: Optional[WorkflowWorker] = None
-        self.all_results = []  # ★ 累积所有任务结果
+        self.all_results = []
         self.progress_bar = None
         self.log_panel = None
 
-        # ★ 统一流水线状态（供监视面板和主界面共用）
+        # 统一流水线状态
         self.pipeline_states: Dict[str, dict] = {}
         self.panel_log_cache: List[tuple] = []
         self._pipeline_total_steps = 0
@@ -622,7 +589,7 @@ class WorkflowModule(BaseModule):
         file_group = QGroupBox()
         file_layout = QVBoxLayout(file_group)
 
-        # ★ 自定义标题栏：标题 + 监视面板按钮
+        # 自定义标题栏：标题 + 监视面板按钮
         title_widget = QWidget()
         title_layout = QHBoxLayout(title_widget)
         title_layout.setContentsMargins(0, 0, 0, 0)
@@ -633,7 +600,7 @@ class WorkflowModule(BaseModule):
         title_layout.addWidget(title_label)
         title_layout.addStretch()
 
-        # ★ 监视面板按钮
+        # 监视面板按钮
         self.monitor_btn = QPushButton("📊 监视面板")
         self.monitor_btn.setToolTip(
             "打开可视化流水线监视面板\n\n"
@@ -666,7 +633,7 @@ class WorkflowModule(BaseModule):
         self.file_list.files_added.connect(self._on_files_added)
         file_layout.addWidget(self.file_list)
 
-        # 按钮行（不再包含监视面板按钮）
+        # 按钮行
         btn_layout = QHBoxLayout()
         add_file_btn = QPushButton("➕ 添加文件")
         add_file_btn.clicked.connect(self._add_files)
@@ -711,61 +678,59 @@ class WorkflowModule(BaseModule):
         return output_group
     
     def _create_grid_settings(self) -> QWidget:
-        """创建设置面板 - 三列布局"""
+        """创建设置面板 - 三列布局（工作流模式移至底部，与右侧列对齐）"""
         grid_widget = QWidget()
         grid_layout = QGridLayout(grid_widget)
         grid_layout.setSpacing(10)
         grid_layout.setContentsMargins(0, 0, 0, 0)
         
-        # ===== 工作流模式（顶部，横跨左+中两列） =====
-        mode_section = self._create_mode_section()
+        # ===== 顶部区域：设置组 =====
         
-        # ===== 左列：执行设置 =====
+        # 左列：分步并行设置
         exec_section = self._create_execution_section()
         
-        # ===== 中间列：目标文件设置 =====
-        target_section = self._create_target_file_section()
+        # ★ 中间列：MD修复设置（上） + 目标文件设置（下）
+        middle_widget = QWidget()
+        middle_layout = QVBoxLayout(middle_widget)
+        middle_layout.setContentsMargins(0, 0, 0, 0)
+        middle_layout.setSpacing(10)
+        middle_layout.addWidget(self._create_repair_section())      # ★ 上：MD修复设置
+        middle_layout.addWidget(self._create_target_file_section()) # ★ 下：目标文件设置
+        middle_layout.addStretch()
         
-        # ===== 右列：MD修复设置 → EPUB设置 → PDF设置 =====
+        # 右列：EPUB设置 → Word设置 → PDF设置
         right_widget = QWidget()
         right_layout = QVBoxLayout(right_widget)
         right_layout.setContentsMargins(0, 0, 0, 0)
         right_layout.setSpacing(10)
-        right_layout.addWidget(self._create_repair_section())
         right_layout.addWidget(self._create_epub_section())
-        right_layout.addWidget(self._create_docx_section()) # ★ 新增 Docx 设置区
+        right_layout.addWidget(self._create_docx_section())
         right_layout.addWidget(self._create_pdf_section())
         right_layout.addStretch()
         
-        # 左 &中列并排
-        left_middle = QWidget()
-        lm_layout = QVBoxLayout(left_middle)
-        lm_layout.setContentsMargins(0, 0, 0, 0)
-        lm_layout.setSpacing(0)
-        
-        lm_top = QHBoxLayout()
-        lm_top.setSpacing(10)
-        lm_top.addWidget(exec_section, 1)
-        lm_top.addWidget(target_section, 1)
-        lm_layout.addLayout(lm_top)
-        lm_layout.addStretch()
+        # ===== 底部区域：工作流模式 =====
+        mode_section = self._create_mode_section()
         
         # 布局
-        grid_layout.addWidget(mode_section, 0, 0, 1, 2)
-        grid_layout.addWidget(left_middle, 1, 0, 1, 2)
-        grid_layout.addWidget(right_widget, 0, 2, 2, 1)
+        grid_layout.addWidget(exec_section, 0, 0, 1, 1)
+        grid_layout.addWidget(middle_widget, 0, 1, 1, 1)
+        grid_layout.addWidget(right_widget, 0, 2, 2, 1)   # 右列横跨2行
+        grid_layout.addWidget(mode_section, 1, 0, 1, 2)   # 工作流模式横跨左+中
         
+        # 列拉伸比例
         grid_layout.setColumnStretch(0, 1)
         grid_layout.setColumnStretch(1, 1)
         grid_layout.setColumnStretch(2, 1)
-        grid_layout.setRowStretch(0, 0)
-        grid_layout.setRowStretch(1, 1)
+        
+        # 行拉伸比例
+        grid_layout.setRowStretch(0, 1)  # 设置区域行（可拉伸）
+        grid_layout.setRowStretch(1, 0)  # 工作流模式行（不拉伸）
         
         return grid_widget
 
     def _create_target_file_section(self) -> QGroupBox:
         """创建目标文件设置区域"""
-        target_group = QGroupBox("📂 目标文件设置")
+        target_group = QGroupBox("🎯 目标文件设置")
         target_layout = QVBoxLayout(target_group)
         target_layout.setSpacing(6)
         
@@ -805,7 +770,6 @@ class WorkflowModule(BaseModule):
             (ModeKey.FULL_TO_DOCX, '生成Word：📄-📖-📝 ||', '修复 MD，间转 EPUB，导出 Word'),
             (ModeKey.REPAIR_TO_EPUB, '生成EPUB：📖-📝-⭕ ||', '修复 Markdown 后，导出为 EPUB'),
         ]
-
 
         for mode_key, label_text, help_text in modes_data:
             row = QWidget()
@@ -872,7 +836,7 @@ class WorkflowModule(BaseModule):
         epub_layout.addLayout(color_row)
 
         self.use_yaml_title_cb = QCheckBox("YAML标题作为内部标题")
-        self.use_yaml_title_cb.setChecked(True)  # 默认勾选
+        self.use_yaml_title_cb.setChecked(True)
         self.use_yaml_title_cb.setToolTip(
             "勾选后，提取YAML的title字段作为EPUB内部标题（书籍元数据和正文开头）。\n"
             "取消勾选则使用文件名作为标题。"
@@ -912,7 +876,7 @@ class WorkflowModule(BaseModule):
         preset_row.addStretch()
         pdf_layout.addLayout(preset_row)
         
-        # ★ 显示页码
+        # 显示页码
         self.workflow_show_page_numbers_cb = QCheckBox("显示页码在PDF页面底部")
         self.workflow_show_page_numbers_cb.setToolTip(
             "在PDF页面底部显示页码\n"
@@ -923,15 +887,20 @@ class WorkflowModule(BaseModule):
         return pdf_group
 
     def _create_docx_section(self) -> QGroupBox:
-        """创建 Word 设置区域（参照 PDF/EPUB 设置区风格）"""
+        """创建 Word 设置区域（含排版预设）"""
         docx_group = QGroupBox("📄 Word 设置")
         docx_layout = QVBoxLayout(docx_group)
-        docx_layout.setSpacing(6)
+        docx_layout.setSpacing(8)
+        docx_layout.setContentsMargins(10, 12, 10, 12)
         
-        # 1. 页面尺寸单选组（扁平化布局）
+        # 1. 页面尺寸单选组
         page_size_layout = QHBoxLayout()
         page_size_layout.setContentsMargins(0, 0, 0, 0)
         page_size_layout.setSpacing(10)
+        
+        page_size_label = QLabel("页面尺寸:")
+        page_size_label.setFixedWidth(65)
+        page_size_layout.addWidget(page_size_label)
         
         self.docx_page_size_group = QButtonGroup()
         sizes = [("A4", "a4"), ("Letter", "letter"), ("B5", "b5"), ("A5", "a5")]
@@ -941,13 +910,58 @@ class WorkflowModule(BaseModule):
             btn.setToolTip(f"输出 Word 页面尺寸：{text}")
             self.docx_page_size_group.addButton(btn)
             page_size_layout.addWidget(btn)
-            if key == "a4":  # 默认选中 A4
+            if key == "a4":
                 btn.setChecked(True)
         
         page_size_layout.addStretch()
         docx_layout.addLayout(page_size_layout)
-
-        # 2. 软回车修复复选框
+        
+        # 2. ★ 排版预设
+        preset_layout = QHBoxLayout()
+        preset_layout.setContentsMargins(0, 5, 0, 5)
+        preset_layout.setSpacing(10)
+        
+        preset_label = QLabel("排版预设:")
+        preset_label.setFixedWidth(65)
+        preset_layout.addWidget(preset_label)
+        
+        self.docx_preset_combo = QComboBox()
+        self.docx_preset_combo.setMinimumWidth(200)
+        self.docx_preset_combo.setToolTip(
+            "选择输出 Word 文档的排版样式\n\n"
+            "📖 书籍排版\n"
+            "  正文：宋体 12pt（小四），1.5倍行距\n"
+            "  标题：楷体，一级标题：14pt（四号）\n"
+            "  英文：Times New Roman\n\n"
+            "📚 学术论文\n"
+            "  正文：宋体 10.5pt（五号），1.5倍行距\n"
+            "  标题：黑体，一级标题：14pt（四号）\n"
+            "  英文：Times New Roman\n\n"
+            "🔧 技术文档\n"
+            "  正文：宋体 9.5pt（小五），1.25倍行距\n"
+            "  标题：黑体，一级标题：12pt（小四）\n"
+            "  代码/英文：Consolas\n\n"
+            "💼 商务报告\n"
+            "  正文：微软雅黑 10.5pt（五号），1.25倍行距\n"
+            "  标题：微软雅黑，一级标题：14pt（四号）\n"
+            "  英文：Arial\n\n"
+            "⏸️ 保留原样\n"
+            "  保留 Calibre 原始样式"
+        )
+        
+        # 添加预设选项
+        self.docx_preset_combo.addItem("📖 书籍排版 (楷体标题，正文宋体)", "book")
+        self.docx_preset_combo.addItem("📚 学术论文 (黑体标题，正文宋体)", "academic")
+        self.docx_preset_combo.addItem("🔧 技术文档 (等宽字体，适合代码)", "technical")
+        self.docx_preset_combo.addItem("💼 商务报告 (微软雅黑 - Arial)", "business")
+        self.docx_preset_combo.addItem("⏸️ 保留原样 (Calibre - Iowan Old Style)", "none")
+        
+        self.docx_preset_combo.setCurrentIndex(0)
+        preset_layout.addWidget(self.docx_preset_combo)
+        preset_layout.addStretch()
+        docx_layout.addLayout(preset_layout)
+        
+        # 3. 软回车修复复选框
         self.docx_fix_soft_breaks_cb = QCheckBox("✨ 自动修复软回车 (↓ → ¶)")
         self.docx_fix_soft_breaks_cb.setChecked(True)
         self.docx_fix_soft_breaks_cb.setToolTip(
@@ -988,7 +1002,6 @@ class WorkflowModule(BaseModule):
         workers_layout = QGridLayout()
         workers_layout.setSpacing(4)
         
-        # ★ 使用常量初始化
         step_defaults = {
             StepKey.REPAIR: min(2, cpu_count),
             StepKey.MD2EPUB: default_workers,
@@ -996,7 +1009,6 @@ class WorkflowModule(BaseModule):
             StepKey.EPUB2DOCX: default_workers,
         }
         
-        # ★ 使用常量作为键名
         step_labels = {
             StepKey.REPAIR: "📝 MD公式修复",
             StepKey.MD2EPUB: "📖 MD转EPUB",
@@ -1024,7 +1036,6 @@ class WorkflowModule(BaseModule):
         
         return exec_group
     
-
     # ====== 公共接口 ======
     
     def set_progress_bar(self, progress_bar):
@@ -1075,7 +1086,6 @@ class WorkflowModule(BaseModule):
             self.output_dir_edit.setText(str(self.output_dir))
     
     def _on_output_dir_text_changed(self, text: str):
-        """输出目录编辑框文本变化时自动同步（支持粘贴路径）"""
         text = text.strip()
         if text:
             path = Path(text)
@@ -1094,7 +1104,6 @@ class WorkflowModule(BaseModule):
         for mode_key, rb in self.mode_buttons.items():
             if rb.isChecked():
                 return mode_key
-        # ★ 返回常量
         return ModeKey.FULL_TO_PDF
     
     def _get_epub_css(self) -> str:
@@ -1124,13 +1133,19 @@ class WorkflowModule(BaseModule):
         
         return {'top': 0, 'bottom': 0, 'left': 0, 'right': 0, 'font_size': 12}
     
+    def _get_docx_page_size(self) -> str:
+        """获取 Word 页面尺寸"""
+        btn = self.docx_page_size_group.checkedButton()
+        if btn:
+            return btn.property("size_key")
+        return "a4"
+    
     def _get_repair_config(self) -> Dict[str, Any]:
         """从 QSettings 读取 MD 修复配置"""
         settings = QSettings(SettingsDomain.EPUB_TOOLBOX, SettingsDomain.MD_REPAIR)
         saved = settings.value(MDRepairKey.CONFIG_V4)
         
         if saved and isinstance(saved, dict):
-            # ★ 使用常量替代硬编码 "formula_config"
             if MDRepairKey.FORMULA_CONFIG not in saved:
                 from modules.md_repair.processor import ConfigurableFormulaFixer
                 saved[MDRepairKey.FORMULA_CONFIG] = ConfigurableFormulaFixer.get_default_config()
@@ -1173,7 +1188,7 @@ class WorkflowModule(BaseModule):
         except Exception:
             self.repair_config_btn.setText("🔧 公式修复")
     
-    # ★ ==================== 配置持久化（新增） ====================
+    # ==================== 配置持久化 ====================
     
     def get_config(self) -> dict:
         """收集 UI 上的所有设置"""
@@ -1197,6 +1212,10 @@ class WorkflowModule(BaseModule):
                 self.pdf_preset_group.checkedButton().property("preset_key")
                 if self.pdf_preset_group.checkedButton() else "1"
             ),
+            # ★ Word 设置
+            WorkflowKey.DOCX_PAGE_SIZE: self._get_docx_page_size(),
+            WorkflowKey.DOCX_FIX_SOFT_BREAKS: self.docx_fix_soft_breaks_cb.isChecked(),
+            WorkflowKey.DOCX_PRESET: self.docx_preset_combo.currentData(),
         }
 
     def _load_config(self):
@@ -1255,13 +1274,30 @@ class WorkflowModule(BaseModule):
                 if btn.property("preset_key") == pdf_preset:
                     btn.setChecked(True)
                     break
+        
+        # ★ 恢复 Word 设置
+        if hasattr(self, 'docx_page_size_group'):
+            docx_page_size = cfg.get(WorkflowKey.DOCX_PAGE_SIZE, "a4")
+            for btn in self.docx_page_size_group.buttons():
+                if btn.property("size_key") == docx_page_size:
+                    btn.setChecked(True)
+                    break
+        
+        if hasattr(self, 'docx_fix_soft_breaks_cb'):
+            self.docx_fix_soft_breaks_cb.setChecked(
+                cfg.get(WorkflowKey.DOCX_FIX_SOFT_BREAKS, True)
+            )
+        
+        if hasattr(self, 'docx_preset_combo'):
+            docx_preset = cfg.get(WorkflowKey.DOCX_PRESET, "book")
+            idx = self.docx_preset_combo.findData(docx_preset)
+            if idx >= 0:
+                self.docx_preset_combo.setCurrentIndex(idx)
 
     def _save_config(self):
         """保存设置到 QSettings"""
         settings = QSettings(SettingsDomain.EPUB_TOOLBOX, SettingsDomain.SETTINGS)
         settings.setValue(WorkflowKey.CONFIG, self.get_config())
-    
-    # ★ ==================== 配置持久化结束 ====================
     
     # ====== 处理流程 ======
     
@@ -1343,7 +1379,6 @@ class WorkflowModule(BaseModule):
         self.log("=" * 60)
         
         # 构建步骤 worker 配置
-        # ★ 使用常量作为键名
         step_workers = {
             StepKey.REPAIR: self.step_spins[StepKey.REPAIR].value(),
             StepKey.MD2EPUB: self.step_spins[StepKey.MD2EPUB].value(),
@@ -1351,13 +1386,10 @@ class WorkflowModule(BaseModule):
             StepKey.EPUB2DOCX: self.step_spins[StepKey.EPUB2DOCX].value(),
         }
 
-        # ★ 收集 Word 转换参数
-        docx_page_size = "a4"
-        docx_btn = self.docx_page_size_group.checkedButton()
-        if docx_btn:
-            docx_page_size = docx_btn.property("size_key")
-            
+        # 收集 Word 转换参数
+        docx_page_size = self._get_docx_page_size()
         docx_fix_soft_breaks = self.docx_fix_soft_breaks_cb.isChecked()
+        docx_preset = self.docx_preset_combo.currentData()
 
         self.worker = WorkflowWorker(
             files=files,
@@ -1372,9 +1404,9 @@ class WorkflowModule(BaseModule):
             use_yaml_title=self.use_yaml_title_cb.isChecked(),
             step_workers=step_workers,
             show_page_numbers=self.workflow_show_page_numbers_cb.isChecked(),
-            # ★ 传递 Docx 参数
             docx_page_size=docx_page_size,
             docx_fix_soft_breaks=docx_fix_soft_breaks,
+            docx_preset=docx_preset,
         )
 
         self.worker.progress_updated.connect(self._on_progress_updated)
@@ -1409,7 +1441,7 @@ class WorkflowModule(BaseModule):
     
     def _on_finished(self, results: list):
         self.is_processing = False
-        self.all_results.extend(results)  # ★ 追加历史结果
+        self.all_results.extend(results)
         if self.progress_bar:
             self.progress_bar.setValue(100)
         
@@ -1431,7 +1463,6 @@ class WorkflowModule(BaseModule):
         
         self.update_progress(100, f"完成 - 成功: {success}, 失败: {failed}")
         
-        # ★ 保存用户设置
         self._save_config()
         
         if self.force_reprocess_cb.isChecked():
@@ -1442,16 +1473,12 @@ class WorkflowModule(BaseModule):
             f"工作流处理完成！\n\n✅ 成功: {success} 个\n❌ 失败: {failed} 个")
 
     def _on_pipeline_step_changed(self, file_path: Path, step_name: str, state: dict):
-        """主界面 Worker 的步骤状态同步到统一流水线（标准化版本）
-        
-        关键：使用 make_pipeline_key() 确保所有 Worker 路径归一化到原始 .md 文件
-        """
-        # ★ 标准化 key：将任意路径（.md / _fixed.md / .epub）统一为原始 .md 路径
+        """主界面 Worker 的步骤状态同步到统一流水线"""
         key = make_pipeline_key(file_path)
         
         if key not in self.pipeline_states:
             self.pipeline_states[key] = {
-                'file': resolve_source_file(file_path),  # 始终存原始文件
+                'file': resolve_source_file(file_path),
                 'steps': {}
             }
         
@@ -1467,10 +1494,6 @@ class WorkflowModule(BaseModule):
     # ====== 统一流水线状态管理 ======
 
     def panel_update_step_state(self, file_path: Path, step_name: str, state: dict):
-        """更新统一流水线中某文件的某步骤状态（标准化版本）
-        
-        关键：使用 make_pipeline_key() 确保 key 始终统一
-        """
         key = make_pipeline_key(file_path)
         if key not in self.pipeline_states:
             self.pipeline_states[key] = {
@@ -1479,35 +1502,25 @@ class WorkflowModule(BaseModule):
             }
         self.pipeline_states[key]['steps'][step_name] = state
 
-
     def panel_append_log(self, message: str, level: str = "INFO"):
-        """追加日志到统一缓存"""
         timestamp = time.strftime("%H:%M:%S")
         self.panel_log_cache.append((timestamp, message, level))
         if len(self.panel_log_cache) > 500:
             self.panel_log_cache = self.panel_log_cache[-500:]
 
-
     def panel_get_logs(self) -> List[tuple]:
-        """获取日志缓存"""
         return self.panel_log_cache
 
-
     def panel_reset_file_states(self, file_paths: List[Path]):
-        """重置指定文件的所有步骤状态"""
         for fp in file_paths:
-            key = make_pipeline_key(fp)  # ✅ 使用统一 key
+            key = make_pipeline_key(fp)
             if key in self.pipeline_states:
                 self.pipeline_states[key]['steps'] = {}
 
-
     def panel_get_all_states(self) -> Dict:
-        """获取全部流水线状态"""
         return self.pipeline_states
 
-
     def panel_clear_all_states(self):
-        """重置所有状态"""
         self.pipeline_states.clear()
         self.panel_log_cache.clear()
         self._pipeline_total_steps = 0
@@ -1515,14 +1528,10 @@ class WorkflowModule(BaseModule):
         self._pipeline_completed_files = 0
         self._pipeline_start_time = 0.0
 
-
     def panel_get_row_config(self, file_path: Path) -> Dict:
-        """获取指定文件的独立配置"""
         return getattr(self, '_panel_row_configs', {}).get(file_path, {})
 
-
     def panel_set_row_config(self, file_path: Path, config: Dict):
-        """设置指定文件的独立配置"""
         if not hasattr(self, '_panel_row_configs'):
             self._panel_row_configs = {}
         if config:
@@ -1530,25 +1539,20 @@ class WorkflowModule(BaseModule):
         else:
             self._panel_row_configs.pop(file_path, None)
 
-
     def panel_has_row_config(self, file_path: Path) -> bool:
-        """检查指定文件是否有独立配置"""
         return file_path in getattr(self, '_panel_row_configs', {})
 
-
     def panel_get_all_row_configs(self) -> Dict:
-        """获取所有独立配置"""
         return getattr(self, '_panel_row_configs', {})
 
     def _open_monitor_panel(self):
-        """打开监视面板"""
         from modules.workflow.monitor_panel import MonitorPanelDialog
-
         dialog = MonitorPanelDialog(parent=None, workflow_module=self)
         dialog.exec()
         self.log("📊 监视面板已关闭", "INFO")
 
+
 # ==================== 元信息 ====================
 __author__ = "YQJ"
-__version__ = "1.5.0"
-__date__ = "2026.05.23"
+__version__ = "1.6.0"
+__date__ = "2026.05.24"

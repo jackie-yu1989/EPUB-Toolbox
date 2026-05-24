@@ -428,7 +428,7 @@ class MD2EPUBModule(BaseModule):
     def module_description(self) -> str:
         return (
             "Markdown → EPUB 精美排版电子书。"
-            "外部CSS自动发现、10色主题、YAML标题重命名、Mermaid图表渲染。"
+            "外部CSS自动发现、10色主题、YAML标题、Mermaid图表。"
         )
     
     @property

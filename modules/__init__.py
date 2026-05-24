@@ -3,7 +3,7 @@
 
 """
 功能模块包
-包含 自动工作流、MD公式修复、MD转EPUB、EPUB转PDF 三个核心模块
+包含 自动工作流、MD公式修复、MD转EPUB、EPUB转Word、EPUB转PDF 四个核心模块
 """
 
 from .workflow import WorkflowModule

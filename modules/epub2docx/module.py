@@ -18,7 +18,7 @@ from threading import Event
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QGroupBox, QRadioButton, QSpinBox, QCheckBox, QLineEdit,
-    QFileDialog, QFrame, QButtonGroup, QMessageBox
+    QFileDialog, QFrame, QButtonGroup, QMessageBox,QComboBox
 )
 from PyQt6.QtCore import QThread, pyqtSignal, Qt, QSettings
 
@@ -45,6 +45,7 @@ class ConversionWorker(QThread):
                  output_dir: Optional[Path] = None,
                  page_size: str = "a4",
                  fix_soft_breaks: bool = True,
+                 font_preset: str = "academic",      # ★ 新增
                  max_workers: int = 4, auto_open: bool = False):
         super().__init__()
         self.input_files = input_files
@@ -52,6 +53,7 @@ class ConversionWorker(QThread):
         self.output_dir = output_dir
         self.page_size = page_size
         self.fix_soft_breaks = fix_soft_breaks
+        self.font_preset = font_preset                # ★ 新增
         self.max_workers = max_workers
         self.auto_open = auto_open
         self._stop_event = Event()
@@ -85,8 +87,7 @@ class ConversionWorker(QThread):
         self.results = []
 
         self.log_message.emit(
-            f"开始转换 {total} 个文件，并行数: {self.max_workers}",
-            "INFO"
+            f"开始转换 {total} 个文件，并行数: {self.max_workers}", "INFO"
         )
 
         start_total = time.time()
@@ -112,10 +113,19 @@ class ConversionWorker(QThread):
 
                 self.file_status_signal.emit(epub_file, 'processing')
 
+                # 创建日志回调
+                def log_cb(msg):
+                    self.log_message.emit(msg, "INFO")
+
                 future = executor.submit(
                     convert_epub_to_docx,
-                    epub_file, output_docx, self.page_size,
-                    self.fix_soft_breaks
+                    epub_file,           # 参数1: epub_file
+                    output_docx,         # 参数2: output_docx
+                    self.page_size,      # 参数3: page_size
+                    self.fix_soft_breaks,# 参数4: fix_soft_breaks
+                    True,                # 参数5: auto_typography (★ 新增，设为 True)
+                    self.font_preset,    # 参数6: font_preset
+                    log_cb               # 参数7: log_callback
                 )
                 futures[future] = (epub_file, output_docx)
 
@@ -260,7 +270,7 @@ class EPUB2DOCXModule(BaseModule):
     def module_description(self) -> str:
         return (
             "EPUB → Word 批量转换。"
-            "软回车(^l)自动转硬段落(^p)、页面尺寸预设、离焦状态记忆。"
+            "软回车自动转硬段落、5种排版预设、页面尺寸可选。"
         )
 
     @property
@@ -371,9 +381,7 @@ class EPUB2DOCXModule(BaseModule):
         page_size_label = QLabel("页面尺寸：")
         page_size_layout.addWidget(page_size_label)
         
-        # 使用 QButtonGroup 管理互斥选择
         self.page_size_btn_group = QButtonGroup()
-        
         sizes = [("A4", "a4"), ("Letter", "letter"), ("B5", "b5"), ("A5", "a5")]
         for text, key in sizes:
             btn = QRadioButton(text)
@@ -381,12 +389,74 @@ class EPUB2DOCXModule(BaseModule):
             self.page_size_btn_group.addButton(btn)
             page_size_layout.addWidget(btn)
             
-        # 默认选中 A4
         self.page_size_btn_group.buttons()[0].setChecked(True)
         page_size_layout.addStretch()
         options_layout.addLayout(page_size_layout)
 
-        # 2. 软回车修复
+        # 分隔线
+        sep0 = QFrame()
+        sep0.setFrameShape(QFrame.Shape.HLine)
+        sep0.setStyleSheet("background-color: #dee2e6; margin: 5px 0;")
+        options_layout.addWidget(sep0)
+
+        # ★ 2. 排版预设（5个精选预设）
+        preset_layout = QHBoxLayout()
+        preset_layout.setSpacing(10)
+        preset_layout.setContentsMargins(0, 5, 0, 5)
+        
+        preset_label = QLabel("排版预设：")
+        preset_layout.addWidget(preset_label)
+        
+        self.style_preset_combo = QComboBox()
+        self.style_preset_combo.setMinimumWidth(230)
+        
+        # 5个精选预设
+        self.style_preset_combo.addItem("📖 书籍排版  (标题楷体，正文宋体)", "book")
+        self.style_preset_combo.addItem("📚 学术论文  (标题黑体，正文宋体)", "academic")
+        self.style_preset_combo.addItem("🔧 技术文档  (标题黑体，正文宋体)", "technical")
+        self.style_preset_combo.addItem("💼 商务报告  (微软雅黑 - Arial)", "business")
+        self.style_preset_combo.addItem("⏸️ 保留原样  (Calibre - Iowan Old Style)", "none")
+        
+        # 详细 tooltip
+        self.style_preset_combo.setToolTip(
+            "选择输出 Word 文档的排版样式\n\n"
+            
+            "📖 书籍排版\n"
+            "  正文：宋体 12pt（小四），1.5倍行距\n"
+            "  标题：楷体，一级标题：14pt（四号），缩进0字符\n"
+            "  英文：Times New Roman（学术英文标准）\n\n"
+
+            "📚 学术论文\n"
+            "  正文：宋体 10.5pt（五号），1.5倍行距\n"
+            "  标题：黑体，一级标题：14pt（四号），缩进1字符\n"
+            "  英文：Times New Roman（学术英文标准）\n\n"
+
+            "🔧 技术文档\n"
+            "  正文：宋体 9.5pt（小五），1.25倍行距\n"
+            "  标题：黑体，一级标题：12pt（小四），缩进0字符\n"
+            "  代码/英文：Consolas（等宽字体）\n\n"
+            
+            "💼 商务报告\n"
+            "  正文：微软雅黑 10.5pt（五号），1.25倍行距\n"
+            "  标题：微软雅黑，一级标题：14pt（四号），缩进0字符\n"
+            "  英文：Arial（无衬线）\n\n"
+           
+            "⏸️ 保留原样\n"
+            "  保留 Calibre 原始样式（中英文 - Iowan Old Style）"
+        )
+        
+        self.style_preset_combo.setCurrentIndex(0)  # 默认选中学术
+        preset_layout.addWidget(self.style_preset_combo)
+        preset_layout.addStretch()
+        options_layout.addLayout(preset_layout)
+
+        # 分隔线
+        sep = QFrame()
+        sep.setFrameShape(QFrame.Shape.HLine)
+        sep.setStyleSheet("background-color: #dee2e6; margin: 5px 0;")
+        options_layout.addWidget(sep)
+
+        # 3. 软回车修复
         self.fix_soft_breaks_cb = QCheckBox("✨ 自动修复软回车 (↓ → ¶)")
         self.fix_soft_breaks_cb.setChecked(True)
         self.fix_soft_breaks_cb.setToolTip(
@@ -394,13 +464,13 @@ class EPUB2DOCXModule(BaseModule):
         )
         options_layout.addWidget(self.fix_soft_breaks_cb)
 
-        # 3. 分隔线
-        sep = QFrame()
-        sep.setFrameShape(QFrame.Shape.HLine)
-        sep.setStyleSheet("background-color: #dee2e6; margin: 5px 0;")
-        options_layout.addWidget(sep)
+        # 4. 分隔线
+        sep2 = QFrame()
+        sep2.setFrameShape(QFrame.Shape.HLine)
+        sep2.setStyleSheet("background-color: #dee2e6; margin: 5px 0;")
+        options_layout.addWidget(sep2)
 
-        # 4. 并行线程数
+        # 5. 并行线程数
         workers_layout = QHBoxLayout()
         workers_layout.addWidget(QLabel("并行线程数: "))
         
@@ -414,7 +484,7 @@ class EPUB2DOCXModule(BaseModule):
         workers_layout.addStretch()
         options_layout.addLayout(workers_layout)
 
-        # 5. 自动打开
+        # 6. 自动打开
         self.auto_open_cb = QCheckBox("转换完成后自动打开输出目录")
         options_layout.addWidget(self.auto_open_cb)
 
@@ -483,25 +553,25 @@ class EPUB2DOCXModule(BaseModule):
 
     def get_config(self) -> dict:
         """收集 UI 上的所有设置"""
-        # 1. 获取页面尺寸
         page_size = "a4"
         if hasattr(self, 'page_size_btn_group'):
             btn = self.page_size_btn_group.checkedButton()
             if btn:
                 page_size = btn.property("size_key")
         
-        # 2. 获取其他选项
         fix_soft_breaks = self.fix_soft_breaks_cb.isChecked()
         max_threads = self.worker_spin.value()
         auto_open = self.auto_open_cb.isChecked()
-        
-        # 3. 获取输出目录
         output_dir = getattr(self, 'output_dir', None)
 
-        # ★ 使用常量替代硬编码字符串
+        preset_value = "book"
+        if hasattr(self, 'style_preset_combo'):
+            preset_value = self.style_preset_combo.currentData()
+
         return {
             EPUB2DocxKey.PAGE_SIZE: page_size,
             EPUB2DocxKey.FIX_SOFT_BREAKS: fix_soft_breaks,
+            EPUB2DocxKey.TYPOGRAPHY_PRESET: preset_value,
             EPUB2DocxKey.MAX_THREADS: max_threads,
             EPUB2DocxKey.AUTO_OPEN: auto_open,
             EPUB2DocxKey.OUTPUT_DIR: str(output_dir) if output_dir else None
@@ -509,7 +579,6 @@ class EPUB2DOCXModule(BaseModule):
 
     def _load_config(self):
         """从 QSettings 读取并应用到 UI"""
-        # ★ 使用统一的 SettingsDomain + 常量键名
         settings = QSettings(SettingsDomain.EPUB_TOOLBOX, SettingsDomain.SETTINGS)
         cfg = settings.value(EPUB2DocxKey.CONFIG, {})
         if not cfg:
@@ -526,6 +595,14 @@ class EPUB2DOCXModule(BaseModule):
         # 恢复复选框和数值
         if hasattr(self, 'fix_soft_breaks_cb'):
             self.fix_soft_breaks_cb.setChecked(cfg.get(EPUB2DocxKey.FIX_SOFT_BREAKS, True))
+        
+        # 恢复排版预设
+        if hasattr(self, 'style_preset_combo'):
+            preset = cfg.get(EPUB2DocxKey.TYPOGRAPHY_PRESET, "book")
+            idx = self.style_preset_combo.findData(preset)
+            if idx >= 0:
+                self.style_preset_combo.setCurrentIndex(idx)
+        
         if hasattr(self, 'worker_spin'):
             self.worker_spin.setValue(cfg.get(EPUB2DocxKey.MAX_THREADS, 4))
         if hasattr(self, 'auto_open_cb'):
@@ -599,6 +676,9 @@ class EPUB2DOCXModule(BaseModule):
         selected_btn = self.page_size_btn_group.checkedButton()
         self.log(f"页面尺寸: {selected_btn.text() if selected_btn else 'A4'}")
         self.log(f"修复软回车: {'是' if config[EPUB2DocxKey.FIX_SOFT_BREAKS] else '否'}")
+        # ★ 显示排版预设
+        preset_text = self.style_preset_combo.currentText()
+        self.log(f"排版预设: {preset_text}")
         self.log(f"并行线程数: {config[EPUB2DocxKey.MAX_THREADS]}")
         self.log("=" * 60)
 
@@ -608,6 +688,7 @@ class EPUB2DOCXModule(BaseModule):
             output_dir=self.output_dir,
             page_size=config[EPUB2DocxKey.PAGE_SIZE],
             fix_soft_breaks=config[EPUB2DocxKey.FIX_SOFT_BREAKS],
+            font_preset=config.get(EPUB2DocxKey.TYPOGRAPHY_PRESET, "book"),  # ★ 关键：使用 TYPOGRAPHY_PRESET
             max_workers=config[EPUB2DocxKey.MAX_THREADS],
             auto_open=config[EPUB2DocxKey.AUTO_OPEN]
         )

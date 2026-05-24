@@ -106,6 +106,7 @@ class EPUB2DocxKey:
     MAX_THREADS = "max_threads"
     AUTO_OPEN = "auto_open"
     OUTPUT_DIR = "output_dir"
+    TYPOGRAPHY_PRESET = "typography_preset" # 排版预设
 
 
 # ==================== EPUB转PDF 配置键 ====================
@@ -164,6 +165,10 @@ class WorkflowKey:
     EPUB_COLOR_KEY = "epub_color_key"
     PDF_PRESET_KEY = "pdf_preset_key"
 
+    # ★ Word 设置键
+    DOCX_PAGE_SIZE = "docx_page_size"
+    DOCX_FIX_SOFT_BREAKS = "docx_fix_soft_breaks"
+    DOCX_PRESET = "docx_preset"   
 
 # ==================== 主窗口设置键 ====================
 
