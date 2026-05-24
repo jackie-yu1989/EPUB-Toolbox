@@ -1,13 +1,21 @@
-# EPUB 工具箱 v1.16.0
+# EPUB 工具箱 v1.17.0
 
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/)
 [![PyQt6](https://img.shields.io/badge/PyQt6-6.4+-green.svg)](https://riverbankcomputing.com/software/pyqt/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/Version-1.16.0-orange.svg)](#)
+[![Version](https://img.shields.io/badge/Version-1.17.0-orange.svg)](#)
 
 > 集成 Markdown修复、MD转EPUB、EPUB转PDF、EPUB转Word 和组合工作流五大功能的综合性电子书处理工具。
 
 ## 📝 版本历史
+
+### v1.17.0 (2026.05.24) — EPUB转Word 排版预设 + 工作流集成
+
+- 📄 **EPUB转Word 新增5种排版预设**：学术论文、书籍排版、商务报告、技术文档、保留原样
+- 🎨 **排版预设功能**：支持正文/标题中英文字体分离、字号、行距、首行缩进独立配置
+- 🔧 **技术文档预设**：使用 Consolas 等宽字体，适合代码/API 文档
+- 🔄 **工作流集成 Word 排版预设**：Word 设置组新增排版预设下拉框
+- 🎯 **UI 优化**：工作流模块布局调整，目标文件设置改用靶心图标
 
 ### v1.16.0 (2026.05.23) — 工作流 Word 集成 + 常量重构 + 配置持久化
 
