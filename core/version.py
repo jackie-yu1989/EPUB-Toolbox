@@ -6,8 +6,8 @@ EPUB工具箱 - 版本信息（单一数据源）
 """
 
 __app_name__ = "EPUB工具箱"
-__version__ = "1.17.0"
-__date__ = "2026.05.24"
+__version__ = "1.17.1"
+__date__ = "2026.05.25"
 __author__ = "YQJ"
 __description__ = (
     "集成 MD公式修复、MD转EPUB、EPUB转PDF、EPUB转Word 和组合工作流五大功能的电子书处理工具。"

@@ -1,13 +1,17 @@
-# EPUB 工具箱 v1.17.0
+# EPUB 工具箱 v1.17.1
 
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/)
 [![PyQt6](https://img.shields.io/badge/PyQt6-6.4+-green.svg)](https://riverbankcomputing.com/software/pyqt/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/Version-1.17.0-orange.svg)](#)
+[![Version](https://img.shields.io/badge/Version-1.17.1-orange.svg)](#)
 
 > 集成 Markdown修复、MD转EPUB、EPUB转PDF、EPUB转Word 和组合工作流五大功能的综合性电子书处理工具。
 
 ## 📝 版本历史
+
+### v1.17.1 (2026.05.25)
+
+- 📝 快捷键一览表更新：Ctrl+Q 同时清空主窗口和监视面板日志
 
 ### v1.17.0 (2026.05.24) — EPUB转Word 排版预设 + 工作流集成
 

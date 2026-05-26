@@ -6,7 +6,6 @@
 """
 
 import sys
-import subprocess
 from pathlib import Path
 from typing import List, Dict, Optional, Tuple
 from enum import Enum
@@ -21,6 +20,7 @@ from PyQt6.QtGui import (
     QDragEnterEvent, QDropEvent, QColor, QAction
 )
 
+from core.utils import open_file_location
 
 class FileStatus(Enum):
     """文件处理状态"""
@@ -450,13 +450,8 @@ class UnifiedFileListWidget(QListWidget):
                 self._open_folder(file_path)
     
     def _open_folder(self, file_path: Path):
-        folder = str(file_path.parent)
-        if sys.platform == 'win32':
-            subprocess.run(['explorer', folder], shell=True)
-        elif sys.platform == 'darwin':
-            subprocess.run(['open', folder])
-        else:
-            subprocess.run(['xdg-open', folder])
+        """打开文件所在文件夹（使用统一工具函数）"""
+        open_file_location(file_path)  # 复用 core.utils 中的函数
 
 class DropHotzoneMixin:
     """拖放热区 Mixin

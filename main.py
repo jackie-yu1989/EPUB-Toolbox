@@ -3,7 +3,7 @@
 
 """
 EPUB工具箱 - 统一调度主程序
-集成 MD公式修复、MD转EPUB、EPUB转PDF 和组合工作流自动编排四大功能
+集成 MD公式修复、MD转EPUB、EPUB转Word、EPUB转PDF 和组合工作流自动编排五大功能
 """
 
 # ===== 必须在所有 import 之前 =====
@@ -17,8 +17,6 @@ import shutil
 import struct
 from typing import List, Optional, Dict
 from PyQt6.QtCore import QSharedMemory
-from PyQt6.QtCore import QBuffer
-from core.config_keys import SettingsDomain, SettingsKey
 
 try:
     import keyboard
@@ -26,7 +24,7 @@ try:
 except Exception:
     HAS_KEYBOARD = False
 
-MAX_INSTANCES = 1  # ★ 最大实例数（软件多开设置）
+MAX_INSTANCES = 1
 
 # 检测是否在 pythonw 模式下运行
 if sys.executable.lower().endswith('pythonw.exe') or 'pythonw' in sys.executable.lower():
@@ -54,11 +52,11 @@ from threading import Thread
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QLabel, QStackedWidget, QProgressBar, QStatusBar,
-    QMessageBox, QFrame, QSplitter, QToolButton, QSplashScreen, QSystemTrayIcon, QMenu
+    QMessageBox, QFrame, QSplitter, QToolButton, QSystemTrayIcon, QMenu
 )
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QSettings, QRect, QStandardPaths
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QSettings, QStandardPaths
 from PyQt6.QtGui import (
-    QFont, QAction, QKeySequence, QIcon, QShortcut
+    QFont, QAction, QKeySequence, QIcon
 )
 
 # 添加项目根目录到路径
@@ -70,6 +68,7 @@ from core.theme_manager import ThemeManager
 from core.components import LogPanel, AboutDialog
 from modules import MDRepairModule, MD2EPUBModule, EPUB2PDFModule, WorkflowModule, EPUB2DOCXModule
 from core.splash_manager import SplashManager
+from core.config_keys import SettingsDomain, SettingsKey
 
 # ★ 统一版本信息（单一数据源）
 from core.version import __app_name__, __version__, __date__, __author__, __description__
@@ -403,7 +402,8 @@ class EPUBToolboxHub(QMainWindow):
     # ==================== UI 构建 ====================
 
     def _setup_ui(self):
-        self.setWindowTitle(f"{__app_name__} v{__version__}")
+        # self.setWindowTitle(f"{__app_name__} v{__version__}")
+        self.setWindowTitle(f"{__app_name__}（公测版）")
         self.setMinimumSize(1020, 680)
         self.resize(1120, 780) # 默认高度设置
         

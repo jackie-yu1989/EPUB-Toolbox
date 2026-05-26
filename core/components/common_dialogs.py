@@ -17,7 +17,7 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont
 
 # ★ 从统一版本模块导入
-from core.version import __version__ as APP_VERSION, __date__ as APP_DATE
+from core.version import __version__ as APP_VERSION, __date__ as APP_DATE, __author__ as APP_AUTHOR
 
 
 # 模块级日志记录器
@@ -105,9 +105,9 @@ class AboutDialog(QMessageBox):
         
         self.setText(
             f"<h2>📚 EPUB 工具箱</h2>"
-            f"<p><b>版本:</b> {__version__}</p>"
-            f"<p><b>作者:</b> {__author__}</p>"
-            f"<p><b>更新日期:</b> {__date__}</p>"
+            f"<p><b>版本:</b> {APP_VERSION}</p>"
+            f"<p><b>作者:</b> {APP_AUTHOR}</p>"
+            f"<p><b>更新日期:</b> {APP_DATE}</p>"
         )
         
         self.setInformativeText(
@@ -221,7 +221,7 @@ class ShortcutDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("⌨️ 快捷键一览")
-        self.setMinimumSize(550, 420)
+        self.setMinimumSize(600, 480)
         self._setup_ui()
     
     def _setup_ui(self):
@@ -248,34 +248,30 @@ class ShortcutDialog(QDialog):
         
         shortcuts = [
             # (快捷键, 功能, 作用域)
-            ("Ctrl+0/1/2/3",  "切换到工作流/MD转EPUB/EPUB转PDF/公式修复", "主窗口"),
-            ("Ctrl+Shift+D",  "开始处理（当前模块）",                       "主窗口"),
-            ("Ctrl+Shift+L",  "预检预览（默认第一个文件）",                  "主窗口"),
-            ("Ctrl+Shift+M",  "打开监视面板（工作流模块）",                  "主窗口"),  
-            ("Ctrl+L",        "显示/隐藏日志面板",                          "主窗口"),
-            ("Ctrl+Q",        "清空日志",                                   "主窗口"),
-            ("Ctrl+Shift+Q",  "清空当前模块文件列表",                       "主窗口"),
-            ("Ctrl+K",        "切换托盘模式",                               "主窗口"),
-            ("Ctrl+Shift+K",  "从系统托盘唤醒窗口并强制置顶",               "全局"),
-            ("Ctrl+W",        "退出软件 / 关闭修复预览 / 关闭监视面板",     "全局"),  
-            ("Ctrl+Left",     "预览中查看上一处变更",                       "预览"),
-            ("Ctrl+Right",    "预览中查看下一处变更",                       "预览"),
-            ("Esc",           "关闭修复预览并激活主窗口 / 关闭监视面板",     "预览/面板"),  
-            ("Delete",        "删除文件列表中选中的文件 / 删除选中行",       "主窗口/面板"), 
-            ("Ctrl+L",        "显示/隐藏监视面板日志",                      "监视面板"),  
-            ("Ctrl+V",        "粘贴文件到监视面板",                         "监视面板"),  
-            ("双击托盘图标",  "从系统托盘唤醒窗口",                         "托盘"),
+            ("Ctrl+0/1/2/3/4",  "切换到工作流/MD修复/MD转EPUB/EPUB转Word/EPUB转PDF", "主窗口"),
+            ("Ctrl+Shift+D",    "开始处理（当前模块）",                               "主窗口"),
+            ("Ctrl+Shift+L",    "预检预览（默认第一个文件）",                          "主窗口"),
+            ("Ctrl+Shift+M",    "打开监视面板（工作流模块）",                          "主窗口"),
+            ("Ctrl+L",          "显示/隐藏日志面板",                                  "主窗口/面板"),
+            ("Ctrl+Q",          "清空当前窗口日志（主窗口/监视面板）",                 "主窗口/面板"),
+            ("Ctrl+Shift+Q",    "清空当前模块文件列表",                               "主窗口"),
+            ("Ctrl+K",          "切换托盘模式",                                      "主窗口"),
+            ("Ctrl+Shift+K",    "从系统托盘唤醒窗口并强制置顶",                        "全局"),
+            ("Ctrl+W",          "退出软件 / 关闭修复预览 / 关闭监视面板",              "全局"),
+            ("Ctrl+Left",       "预览中查看上一处变更",                               "预览"),
+            ("Ctrl+Right",      "预览中查看下一处变更",                               "预览"),
+            ("Esc",             "关闭修复预览并激活主窗口 / 关闭监视面板",             "预览/面板"),
+            ("Delete",          "删除文件列表中选中的文件 / 删除选中行",               "主窗口/面板"),
+            ("Ctrl+V",          "粘贴文件到监视面板",                                 "监视面板"),
+            ("双击托盘图标",    "从系统托盘唤醒窗口",                                 "托盘"),
         ]
         
-        # 计算列宽
-        max_key_len = max(len(s[0]) for s in shortcuts)
-        max_func_len = max(len(s[1]) for s in shortcuts)
-        
+        # 构建 HTML 表格
         html = '<table cellpadding="4" cellspacing="0" style="font-size:12px; width:100%;">'
         html += '<tr style="background-color:#e9ecef; font-weight:bold;">'
-        html += f'<td style="width:140px;">快捷键</td>'
-        html += f'<td>功能</td>'
-        html += f'<td style="width:60px; text-align:center;">作用域</td>'
+        html += '<td style="width:140px;">快捷键</td>'
+        html += '<td>功能</td>'
+        html += '<td style="width:70px; text-align:center;">作用域</td>'
         html += '</tr>'
         
         for i, (key, func, scope) in enumerate(shortcuts):
@@ -284,7 +280,9 @@ class ShortcutDialog(QDialog):
                 "主窗口": "#3498db",
                 "全局": "#e67e22",
                 "预览": "#27ae60",
-                "托盘": "#9b59b6",
+                "面板": "#9b59b6",
+                "主窗口/面板": "#16a085",
+                "托盘": "#8e44ad",
             }.get(scope, "#333")
             
             html += f'<tr style="background-color:{bg};">'
@@ -309,5 +307,5 @@ class ShortcutDialog(QDialog):
 
 # ==================== 元信息 ====================
 __author__ = "YQJ"
-__version__ = "1.2.0"
-__date__ = "2026.05.04"
+__version__ = "1.3.0"
+__date__ = "2026.05.25"

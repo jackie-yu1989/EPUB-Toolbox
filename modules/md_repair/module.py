@@ -25,6 +25,7 @@ from PyQt6.QtCore import QThread, pyqtSignal, Qt, QSettings
 from core.base_module import BaseModule
 from core.components import UnifiedFileListWidget, FileStatus, LogPanel
 from core.components.file_list import DropHotzoneMixin
+from core.utils import open_file_location
 from .processor import (
     MarkdownFormulaProcessor, MarkdownTitleExtractor,
     ConfigurableFormulaFixer, FormulaPreviewer, RepairProfile
@@ -486,14 +487,8 @@ class MDRepairModule(BaseModule):
         return selected
 
     def _open_folder_for_selected(self, file_path: Path):
-        import subprocess
-        folder = str(file_path.parent)
-        if sys.platform == 'win32':
-            subprocess.run(['explorer', folder], shell=True)
-        elif sys.platform == 'darwin':
-            subprocess.run(['open', folder])
-        else:
-            subprocess.run(['xdg-open', folder])
+        """打开文件所在文件夹"""
+        open_file_location(file_path)
 
     # ====== 预检预览 ======
 

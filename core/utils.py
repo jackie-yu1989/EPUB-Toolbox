@@ -205,15 +205,16 @@ def open_file_location(file_path: Path):
     Args:
         file_path: 文件路径
     """
-    folder = str(file_path.parent)
+    # ✅ 关键：强制转换为绝对路径
+    file_path = file_path.resolve()
     
     if sys.platform == 'win32':
-        subprocess.run(['explorer', '/select,', str(file_path)], shell=True)
+        # ★ 修复：/select, 和路径之间不能有空格
+        subprocess.run(['explorer', f'/select,{file_path}'], shell=True)
     elif sys.platform == 'darwin':
         subprocess.run(['open', '-R', str(file_path)])
     else:
-        # Linux 不支持原生"选中文件"，回退到打开文件夹
-        subprocess.run(['xdg-open', folder])
+        subprocess.run(['xdg-open', str(file_path.parent)])
 
 
 def open_folder(folder_path: Path):

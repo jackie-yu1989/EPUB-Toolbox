@@ -119,11 +119,18 @@ class MonitorPanelDialog(QDialog):
         self._log_timer.start(500)
 
         from PyQt6.QtGui import QShortcut, QKeySequence
+
+        # Ctrl+W 关闭面板
         close_shortcut = QShortcut(QKeySequence("Ctrl+W"), self)
         close_shortcut.activated.connect(self.reject)
-
+        
+        # Ctrl+L 切换日志面板
         toggle_log_shortcut = QShortcut(QKeySequence("Ctrl+L"), self)
         toggle_log_shortcut.activated.connect(self._toggle_log_panel)
+        
+        # ★ Ctrl+Q 清空日志
+        clear_log_shortcut = QShortcut(QKeySequence("Ctrl+Q"), self)
+        clear_log_shortcut.activated.connect(self._on_clear_log)
 
         self.setAcceptDrops(True)
         self._empty_label = None  # 空状态提示 label 引用
