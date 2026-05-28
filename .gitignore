@@ -30,6 +30,7 @@ build/
 standalone/
 upx/
 tests/
+resources/dependencies
 
 # 说明文件
 Readme/

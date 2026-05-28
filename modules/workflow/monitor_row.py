@@ -494,5 +494,5 @@ class FilePipelineRow(QWidget):
 
 # ==================== 元信息 ====================
 __author__ = "YQJ"
-__version__ = "1.1.0"
-__date__ = "2026.05.09"
+__version__ = "1.1.1"
+__date__ = "2026.05.28"

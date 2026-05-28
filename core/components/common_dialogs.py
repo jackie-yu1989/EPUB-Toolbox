@@ -3,7 +3,8 @@
 
 """
 通用对话框组件
-提供确认、关于、依赖检查和处理结果等可复用对话框
+提供确认、关于、快捷键一览、依赖检查和处理结果等可复用对话框
+支持 Ctrl+W / Esc 快捷键关闭
 """
 
 import logging
@@ -14,7 +15,7 @@ from PyQt6.QtWidgets import (
     QTextEdit, QTextBrowser, QGroupBox, QDialogButtonBox, QMessageBox
 )
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QFont
+from PyQt6.QtGui import QFont, QShortcut, QKeySequence
 
 # ★ 从统一版本模块导入
 from core.version import __version__ as APP_VERSION, __date__ as APP_DATE, __author__ as APP_AUTHOR
@@ -103,6 +104,14 @@ class AboutDialog(QMessageBox):
         self.setWindowTitle("关于 EPUB 工具箱")
         self.setIcon(QMessageBox.Icon.Information)
         
+        # ★ Ctrl+W 快捷键关闭
+        close_shortcut = QShortcut(QKeySequence("Ctrl+W"), self)
+        close_shortcut.activated.connect(self.close)
+        
+        # Esc 快捷键关闭（QMessageBox 默认支持）
+        esc_shortcut = QShortcut(QKeySequence("Esc"), self)
+        esc_shortcut.activated.connect(self.close)
+
         self.setText(
             f"<h2>📚 EPUB 工具箱</h2>"
             f"<p><b>版本:</b> {APP_VERSION}</p>"
@@ -220,8 +229,18 @@ class ShortcutDialog(QDialog):
     
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("⌨️ 快捷键一览")
-        self.setMinimumSize(600, 480)
+        self.setWindowTitle("快捷键一览 ⌨️")
+        self.setMinimumSize(660, 690)
+        
+        # ★ Ctrl+W 快捷键关闭
+        from PyQt6.QtGui import QShortcut, QKeySequence
+        close_shortcut = QShortcut(QKeySequence("Ctrl+W"), self)
+        close_shortcut.activated.connect(self.close)
+        
+        # Esc 快捷键关闭
+        esc_shortcut = QShortcut(QKeySequence("Esc"), self)
+        esc_shortcut.activated.connect(self.reject)
+        
         self._setup_ui()
     
     def _setup_ui(self):
@@ -248,30 +267,31 @@ class ShortcutDialog(QDialog):
         
         shortcuts = [
             # (快捷键, 功能, 作用域)
-            ("Ctrl+0/1/2/3/4",  "切换到工作流/MD修复/MD转EPUB/EPUB转Word/EPUB转PDF", "主窗口"),
+            ("Ctrl+0/1/2/3/4",  "切换到工作流/MD转EPUB/EPUB转PDF/公式修复/EPUB转Word", "主窗口"),
             ("Ctrl+Shift+D",    "开始处理（当前模块）",                               "主窗口"),
             ("Ctrl+Shift+L",    "预检预览（默认第一个文件）",                          "主窗口"),
             ("Ctrl+Shift+M",    "打开监视面板（工作流模块）",                          "主窗口"),
             ("Ctrl+L",          "显示/隐藏日志面板",                                  "主窗口/面板"),
-            ("Ctrl+Q",          "清空当前窗口日志（主窗口/监视面板）",                 "主窗口/面板"),
+            ("Ctrl+Q",          "清空当前窗口日志（主窗口/监视面板/依赖工具）",         "主窗口/面板/依赖工具"),
             ("Ctrl+Shift+Q",    "清空当前模块文件列表",                               "主窗口"),
             ("Ctrl+K",          "切换托盘模式",                                      "主窗口"),
             ("Ctrl+Shift+K",    "从系统托盘唤醒窗口并强制置顶",                        "全局"),
-            ("Ctrl+W",          "退出软件 / 关闭修复预览 / 关闭监视面板",              "全局"),
+            ("Ctrl+W",          "退出软件 / 关闭修复预览 / 关闭监视面板 / 关闭对话框",  "全局"),
             ("Ctrl+Left",       "预览中查看上一处变更",                               "预览"),
             ("Ctrl+Right",      "预览中查看下一处变更",                               "预览"),
-            ("Esc",             "关闭修复预览并激活主窗口 / 关闭监视面板",             "预览/面板"),
+            ("Esc",             "关闭修复预览 / 关闭监视面板 / 关闭对话框",            "预览/面板"),
             ("Delete",          "删除文件列表中选中的文件 / 删除选中行",               "主窗口/面板"),
             ("Ctrl+V",          "粘贴文件到监视面板",                                 "监视面板"),
+            ("F5",              "刷新依赖工具状态（重新检测）",                        "依赖工具"),
             ("双击托盘图标",    "从系统托盘唤醒窗口",                                 "托盘"),
         ]
         
         # 构建 HTML 表格
-        html = '<table cellpadding="4" cellspacing="0" style="font-size:12px; width:100%;">'
+        html = '<table cellpadding="6" cellspacing="0" style="font-size:12px; width:100%;">'
         html += '<tr style="background-color:#e9ecef; font-weight:bold;">'
-        html += '<td style="width:140px;">快捷键</td>'
+        html += '<td style="width:150px;">快捷键</td>'
         html += '<td>功能</td>'
-        html += '<td style="width:70px; text-align:center;">作用域</td>'
+        html += '<td style="width:100px; text-align:center;">作用域</td>'
         html += '</tr>'
         
         for i, (key, func, scope) in enumerate(shortcuts):
@@ -282,13 +302,16 @@ class ShortcutDialog(QDialog):
                 "预览": "#27ae60",
                 "面板": "#9b59b6",
                 "主窗口/面板": "#16a085",
+                "主窗口/面板/依赖工具": "#1abc9c",
+                "预览/面板": "#1abc9c",
+                "依赖工具": "#613005",
                 "托盘": "#8e44ad",
             }.get(scope, "#333")
             
             html += f'<tr style="background-color:{bg};">'
-            html += f'<td><code style="font-weight:bold;">{key}</code></td>'
-            html += f'<td>{func}</td>'
-            html += f'<td style="text-align:center; color:{scope_color}; font-weight:bold;">{scope}</td>'
+            html += f'<td style="padding:8px;"><code style="font-weight:bold;">{key}</code></td>'
+            html += f'<td style="padding:8px;">{func}</td>'
+            html += f'<td style="text-align:center; color:{scope_color}; font-weight:bold; padding:8px;">{scope}</td>'
             html += '</tr>'
         
         html += '</table>'
@@ -307,5 +330,5 @@ class ShortcutDialog(QDialog):
 
 # ==================== 元信息 ====================
 __author__ = "YQJ"
-__version__ = "1.3.0"
-__date__ = "2026.05.25"
+__version__ = "1.5.0"
+__date__ = "2026.05.29"

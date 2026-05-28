@@ -1,13 +1,24 @@
-# EPUB 工具箱 v1.17.1
+# EPUB 工具箱 v1.17.2
 
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/)
 [![PyQt6](https://img.shields.io/badge/PyQt6-6.4+-green.svg)](https://riverbankcomputing.com/software/pyqt/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/Version-1.17.1-orange.svg)](#)
+[![Version](https://img.shields.io/badge/Version-1.17.2-orange.svg)](#)
 
 > 集成 Markdown修复、MD转EPUB、EPUB转PDF、EPUB转Word 和组合工作流五大功能的综合性电子书处理工具。
 
 ## 📝 版本历史
+
+### v1.17.2 (2026.05.29) — 依赖工具管理增强 + 快捷键扩展
+
+- 🛠️ **依赖工具管理增强**：
+  - 支持离线安装（将 `.msi` 放入 `resources/dependencies/` 目录）
+  - 支持后台运行模式（系统托盘显示进度，完成后通知）
+- ⌨️ **快捷键扩展**：
+  - `Ctrl+Q` 清空日志扩展至依赖工具管理
+  - `F5` 刷新依赖工具状态
+  - `Ctrl+W`/`Esc` 支持关闭依赖工具对话框
+- 🧹 **代码优化**：清理未使用的导入，统一快捷键处理逻辑
 
 ### v1.17.1 (2026.05.25)
 

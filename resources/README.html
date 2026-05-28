@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>EPUB 工具箱 v1.17.1 — 功能文档</title>
+<title>EPUB 工具箱 v1.17.2 — 功能文档</title>
 <style>
   :root {
     --primary: #3498db; --primary-dark: #2980b9; --success: #27ae60;
@@ -73,10 +73,6 @@
   .feature-list li { padding: 5px 0; border-bottom: 1px dotted var(--border); }
   .feature-list li:last-child { border-bottom: none; }
   .feature-list li::before { content: "▸ "; color: var(--primary); }
-  .code-block { background: #1a1a2e; color: #a0b4cc; border-radius: var(--radius); padding: 16px 20px; font-family: "Consolas", "Fira Code", monospace; font-size: 0.85em; line-height: 1.6; overflow-x: auto; margin: 10px 0; }
-  .code-block .prompt { color: #f1c40f; }
-  .code-block .cmd { color: #5dade2; }
-  .code-block .comment { color: #7f8c8d; }
   .tip { background: #eafaf1; border-left: 4px solid var(--success); padding: 12px 16px; border-radius: 0 var(--radius) var(--radius) 0; margin: 12px 0; }
   .warn { background: #fef9e7; border-left: 4px solid var(--warning); padding: 12px 16px; border-radius: 0 var(--radius) var(--radius) 0; margin: 12px 0; }
   .danger { background: #fdedec; border-left: 4px solid var(--danger); padding: 12px 16px; border-radius: 0 var(--radius) var(--radius) 0; margin: 12px 0; }
@@ -100,6 +96,7 @@
     <button onclick="switchTab(event, 'tab-md2epub')">📖 MD转EPUB</button>
     <button onclick="switchTab(event, 'tab-epub2docx')">📄 EPUB转Word</button>
     <button onclick="switchTab(event, 'tab-epub2pdf')">📕 EPUB转PDF</button>
+    <button onclick="switchTab(event, 'tab-dependencies')">📦 依赖工具管理</button>
     <button onclick="switchTab(event, 'tab-architecture')">🏗️ 项目架构</button>
     <button onclick="switchTab(event, 'tab-quickref')">⚡ 快速参考</button>
   </nav>
@@ -109,13 +106,13 @@
 <div class="main-content">
 
 <header>
-  <h1>📚 EPUB 工具箱 v1.17.1</h1>
+  <h1>📚 EPUB 工具箱 v1.17.2</h1>
   <p>集成 MD公式修复、MD转EPUB、EPUB转PDF、EPUB转Word 和组合工作流五大功能的电子书处理工具</p>
   <div class="badges">
     <span class="badge badge-python">Python 3.8+</span>
     <span class="badge badge-pyqt">PyQt6 6.4+</span>
     <span class="badge badge-license">MIT License</span>
-    <span class="badge badge-version">v1.17.1</span>
+    <span class="badge badge-version">v1.17.2</span>
   </div>
 </header>
 
@@ -125,26 +122,26 @@
     <h3>🎯 功能概览</h3>
     <table>
       <tr><th>功能模块</th><th>输入</th><th>输出</th><th>核心能力</th></tr>
-      <tr><td>🔄 组合工作流</td><td>.md</td><td>.epub / .pdf / .docx</td><td>5种模式自动编排，流水线并行，📊可视化监视面板，Word排版预设集成</td></tr>
-      <tr><td>📝 MD公式修复</td><td>.md</td><td>_fixed.md</td><td>16项可配置修复，4套预设方案，并排对比预览</td></tr>
-      <tr><td>📖 MD转EPUB</td><td>.md</td><td>.epub</td><td>3套CSS模板 + 10种主题色，YAML标题，Mermaid图表</td></tr>
-      <tr><td>📄 EPUB转Word <span class="version-tag">v1.17.0 增强</span></td><td>.epub</td><td>.docx</td><td>XML级软回车修复，5种排版预设，页面尺寸配置</td></tr>
-      <tr><td>📕 EPUB转PDF</td><td>.epub</td><td>.pdf</td><td>4种页边距预设，显示页码，完成后打开各产物目录</td></tr>
-    </table>
+      <tr><td>🔄 组合工作流</span></td><td>.md</span></td><td>.epub / .pdf / .docx</span><td>5种模式自动编排，流水线并行，📊可视化监视面板，Word排版预设集成</span></tr>
+      <tr><td>📝 MD公式修复</span></td><td>.md</span><td>_fixed.md</span><td>16项可配置修复，4套预设方案，并排对比预览</span></tr>
+      <tr><td>📖 MD转EPUB</span></td><td>.md</span><td>.epub</span><td>3套CSS模板 + 10种主题色，YAML标题，Mermaid图表</span></tr>
+      <tr><td>📄 EPUB转Word <span class="version-tag">v1.17.0 增强</span></span></td><td>.epub</span><td>.docx</span><td>XML级软回车修复，5种排版预设，页面尺寸配置</span></tr>
+      <tr><td>📕 EPUB转PDF</span></td><td>.epub</span><td>.pdf</span><td>4种页边距预设，显示页码，完成后打开各产物目录</span></tr>
+    犀
   </div>
   <div class="card">
     <h3>🌐 全局特性</h3>
     <table>
       <tr><th>特性</th><th>说明</th></tr>
-      <tr><td>主题</td><td>6套UI配色方案（浅色/深色/蓝/绿/橙/紫）</td></tr>
-      <tr><td>拖拽导入</td><td>热区扩大至整个 QGroupBox，支持文件夹递归</td></tr>
-      <tr><td>粘贴导入</td><td>Ctrl+V 从剪贴板提取文件路径</td></tr>
-      <tr><td>系统托盘</td><td>关闭时隐藏到托盘，Ctrl+Shift+K 全局热键唤醒</td></tr>
-      <tr><td>多实例控制</td><td>共享内存计数，限制最大实例数</td></tr>
-      <tr><td>依赖管理</td><td>GUI 界面一键安装/更新 Pandoc、Calibre、Node.js、Mermaid CLI</td></tr>
-      <tr><td>优雅关闭</td><td>等待线程结束 + 超时强制终止，清理临时文件</td></tr>
-      <tr><td>智能打开目录</td><td>全局修复 Windows 下资源管理器误跳"文档"文件夹的 Bug</td></tr>
-      <tr><td>配置键常量化</td><td>全模块统一使用 config_keys.py 管理配置键，消除魔法字符串</td></tr>
+      <tr><td>主题</span><td>6套UI配色方案（浅色/深色/蓝/绿/橙/紫）</span></tr>
+      <tr><td>拖拽导入</span><td>热区扩大至整个 QGroupBox，支持文件夹递归</span></tr>
+      <tr><td>粘贴导入</span><td>Ctrl+V 从剪贴板提取文件路径</span></tr>
+      <tr><td>系统托盘</span><td>关闭时隐藏到托盘，Ctrl+Shift+K 全局热键唤醒</span></tr>
+      <tr><td>多实例控制</span><td>共享内存计数，限制最大实例数</span></tr>
+      <tr><td>依赖管理 <span class="version-tag">v1.17.2 增强</span></span><td>离线安装支持、后台运行模式、F5刷新、系统托盘通知</span></tr>
+      <tr><td>优雅关闭</span><td>等待线程结束 + 超时强制终止，清理临时文件</span></tr>
+      <tr><td>智能打开目录</span><td>全局修复 Windows 下资源管理器误跳"文档"文件夹的 Bug</span></tr>
+      <tr><td>配置键常量化</span><td>全模块统一使用 config_keys.py 管理配置键，消除魔法字符串</span></tr>
     </table>
   </div>
 </div>
@@ -155,11 +152,11 @@
     <h3>🔄 5种工作流模式</h3>
     <table>
       <tr><th>模式</th><th>图标</th><th>步骤</th><th>输出</th><th>适用场景</th></tr>
-      <tr><td>产出PDF</td><td>📕-📖-⭕</td><td>MD转EPUB → EPUB转PDF</td><td>.pdf</td><td>已有正确公式的文档</td></tr>
-      <tr><td>产出PDF</td><td>📕-📖-📝</td><td>修复MD → 间转EPUB → EPUB转PDF</td><td>.pdf</td><td>发布论文/报告</td></tr>
-      <tr><td>产出Word</td><td>📄-📖-⭕</td><td>MD转EPUB → EPUB转Word</td><td>.docx</td><td>已有正确公式的文档</td></tr>
-      <tr><td>产出Word</td><td>📄-📖-📝</td><td>修复MD → 间转EPUB → EPUB转Word</td><td>.docx</td><td>博客→Word文档</td></tr>
-      <tr><td>产出EPUB</td><td>📖-📝-⭕</td><td>修复Markdown → 导出EPUB</td><td>.epub</td><td>博客→电子书</td></tr>
+      <tr><td>产出PDF</span><td>📕-📖-⭕</span><td>MD转EPUB → EPUB转PDF</span><td>.pdf</span><td>已有正确公式的文档</span></tr>
+      <tr><td>产出PDF</span><td>📕-📖-📝</span><td>修复MD → 间转EPUB → EPUB转PDF</span><td>.pdf</span><td>发布论文/报告</span></tr>
+      <tr><td>产出Word</span><td>📄-📖-⭕</span><td>MD转EPUB → EPUB转Word</span><td>.docx</span><td>已有正确公式的文档</span></tr>
+      <tr><td>产出Word</span><td>📄-📖-📝</span><td>修复MD → 间转EPUB → EPUB转Word</span><td>.docx</span><td>博客→Word文档</span></tr>
+      <tr><td>产出EPUB</span><td>📖-📝-⭕</span><td>修复Markdown → 导出EPUB</span><td>.epub</span><td>博客→电子书</span></tr>
     </table>
   </div>
   <div class="card">
@@ -184,36 +181,24 @@
     <h3>🟢 格式与语法修复（低风险，推荐开启）</h3>
     <table>
       <tr><th>功能</th><th>触发条件</th><th>修复动作</th></tr>
-      <tr><td>🧹 多余换行清理</td><td>3+ 连续空行</td><td>简化为 2 空行</td></tr>
-      <tr><td>📏 行内公式后添加空格</td><td>$...$ 后紧跟中文</td><td>插入空格</td></tr>
-      <tr><td>↗️ 上下标范围修正</td><td>^ 或 _ 后多字符未包裹</td><td>添加 {}</td></tr>
-      <tr><td>📝 函数名正体化</td><td>未加 \ 的函数名</td><td>添加 \ 前缀</td></tr>
-      <tr><td>🧮 矩阵末尾换行移除</td><td>\end 前多余 \\</td><td>移除</td></tr>
-      <tr><td>🔍 括号配对检查</td><td>\left/\right 不配对</td><td>自动补全</td></tr>
-      <tr><td>🔤 编码问题修复</td><td>\x00、\r\n 等</td><td>替换+转义</td></tr>
-      <tr><td>💲 美元符号转义</td><td>孤立 $</td><td>转义为 \$</td></tr>
+      <tr><td>🧹 多余换行清理</span><td>3+ 连续空行</span><td>简化为 2 空行</span></tr>
+      <tr><td>📏 行内公式后添加空格</span><td>$...$ 后紧跟中文</span><td>插入空格</span></tr>
+      <tr><td>↗️ 上下标范围修正</span><td>^ 或 _ 后多字符未包裹</span><td>添加 {}</span></tr>
+      <tr><td>📝 函数名正体化</span><td>未加 \ 的函数名</span><td>添加 \ 前缀</span></tr>
+      <tr><td>🧮 矩阵末尾换行移除</span><td>\end 前多余 \\</span><td>移除</span></tr>
+      <tr><td>🔍 括号配对检查</span><td>\left/\right 不配对</span><td>自动补全</span></tr>
+      <tr><td>🔤 编码问题修复</span><td>\x00、\r\n 等</span><td>替换+转义</span></tr>
+      <tr><td>💲 美元符号转义</span><td>孤立 $</span><td>转义为 \$</span></tr>
     </table>
   </div>
   <div class="card">
     <h3>📋 4套预设方案</h3>
     <table>
       <tr><th>方案</th><th>特点</th><th>适用</th></tr>
-      <tr><td>🟢 安全模式</td><td>仅8项低风险</td><td>重要文档</td></tr>
-      <tr><td>🟡 标准模式</td><td>12项低+中风险</td><td>日常使用</td></tr>
-      <tr><td>🟣 知乎发布</td><td>增强转义+间距</td><td>知乎平台</td></tr>
-      <tr><td>🔵 学术论文</td><td>仅语法修正</td><td>保留语义</td></tr>
-    </table>
-  </div>
-  <div class="card">
-    <h3>🔍 预览与调试体系</h3>
-    <table>
-      <tr><th>功能</th><th>触发方式</th><th>说明</th></tr>
-      <tr><td>批量预检摘要</td><td>Ctrl+Shift+L</td><td>多文件弹出摘要表格</td></tr>
-      <tr><td>并排对比预览</td><td>右键→预览</td><td>左右对比，difflib 高亮差异</td></tr>
-      <tr><td>MathJax 渲染</td><td>预览窗口内嵌</td><td>三级离线渲染 + 缩放 + 换行</td></tr>
-      <tr><td>快速调整面板</td><td>预览窗口底部</td><td>累积式，勾选自动生效</td></tr>
-      <tr><td>配置更新</td><td>快速调整→按钮</td><td>一键同步到高级设置</td></tr>
-      <tr><td>清除未勾选项</td><td>快速调整→按钮</td><td>清理面板中未勾选的功能项</td></tr>
+      <tr><td>🟢 安全模式</span><td>仅8项低风险</span><td>重要文档</span></tr>
+      <tr><td>🟡 标准模式</span><td>12项低+中风险</span><td>日常使用</span></tr>
+      <tr><td>🟣 知乎发布</span><td>增强转义+间距</span><td>知乎平台</span></tr>
+      <tr><td>🔵 学术论文</span><td>仅语法修正</span><td>保留语义</span></tr>
     </table>
   </div>
 </div>
@@ -225,9 +210,9 @@
     <h3>🎨 CSS 排版风格（外部文件自动发现）</h3>
     <table>
       <tr><th>风格</th><th>特点</th><th>适用</th></tr>
-      <tr><td>朴素样式</td><td>白底黑字极简</td><td>Kindle 墨水屏</td></tr>
-      <tr><td>简洁样式</td><td>白色容器+彩色边框</td><td>现代阅读器</td></tr>
-      <tr><td>暗色风格</td><td>深色背景+浅色文字</td><td>夜间阅读</td></tr>
+      <tr><td>朴素样式</span><td>白底黑字极简</span><td>Kindle 墨水屏</span></tr>
+      <tr><td>简洁样式</span><td>白色容器+彩色边框</span><td>现代阅读器</span></tr>
+      <tr><td>暗色风格</span><td>深色背景+浅色文字</span><td>夜间阅读</span></tr>
     </table>
   </div>
   <div class="card">
@@ -245,39 +230,27 @@
 <!-- ==================== EPUB转Word ==================== -->
 <div id="tab-epub2docx" class="tab-content">
   <div class="card">
-    <h3>📄 EPUB转Word — 软回车修复 + 5种排版预设 <span class="version-tag">v1.17.1 稳定版</span></h3>
+    <h3>📄 EPUB转Word — 软回车修复 + 5种排版预设 <span class="version-tag">v1.17.0 新增</span></h3>
     <p>基于 Calibre 转换，并内置强大的 <strong>XML 级 DOCX 后处理引擎</strong>。</p>
   </div>
   <div class="card">
     <h3>🎨 5种排版预设</h3>
     <table>
-      <tr><th>预设</th><th>正文字体</th><th>标题字体</th><th>字号</th><th>行距</th><th>首行缩进</th></tr>
-      <tr><td>📚 学术论文</td><td>宋体 / TNR</td><td>黑体</td><td>小四(12pt)</td><td>1.5倍</td><td>2字符</td></tr>
-      <tr><td>📖 书籍排版</td><td>楷体</td><td>黑体</td><td>四号(14pt)</td><td>1.5倍</td><td>2字符</td></tr>
-      <tr><td>💼 商务报告</td><td>微软雅黑</td><td>微软雅黑</td><td>五号(10.5pt)</td><td>1.15倍</td><td>无</td></tr>
-      <tr><td>💻 技术文档</td><td>Consolas</td><td>等线</td><td>10.5pt</td><td>1.15倍</td><td>无</td></tr>
-      <tr><td>📄 保留原样</td><td colspan="5">跳过所有样式修改，仅保留软回车修复</td></tr>
+      <tr><th>预设</th><th>正文字体</th><th>标题字体</th><th>行距</th><th>首行缩进</th><th>说明</th></tr>
+      <tr><td>📚 学术论文</span><td>宋体 / Times New Roman</span><td>黑体</span><td>1.5倍</span><td>2字符</span><td>适合论文/报告</span></tr>
+      <tr><td>📖 书籍排版</span><td>宋体 / Times New Roman</span><td>楷体</span><td>1.5倍</span><td>2字符</span><td>适合电子书阅读</span></tr>
+      <tr><td>💼 商务报告</span><td>微软雅黑 / Arial</span><td>微软雅黑</span><td>1.25倍</span><td>无</span><td>适合商业文档</span></tr>
+      <tr><td>💻 技术文档</span><td>宋体 / Consolas</span><td>黑体</span><td>1.25倍</span><td>无</span><td>适合代码/API文档</span></tr>
+      <tr><td>📄 保留原样</span><td colspan="5">跳过所有样式修改，仅保留软回车修复</span></tr>
     </table>
   </div>
   <div class="card">
     <h3>⚙️ 核心功能</h3>
-    <table>
-      <tr><th>功能</th><th>说明</th></tr>
-      <tr><td>✨ 软回车智能修复</td><td>自动将 Word 中的软回车拆分为标准硬段落，彻底解决段落破碎问题</td></tr>
-      <tr><td>📄 页面尺寸预设</td><td>扁平化单选支持 A4 / Letter / B5 / A5</td></tr>
-      <tr><td>🧠 离焦状态记忆</td><td>切换模块或关闭窗口时自动保存当前选项，下次进入无缝恢复</td></tr>
-    </table>
-  </div>
-  <div class="card">
-    <h3>🔧 排版预设实现原理</h3>
-    <p>通过 XML 级后处理实现字体样式替换，核心步骤：</p>
-    <ol>
-      <li>清洗 Calibre 遗留的直接格式（<code>w:sz</code>、<code>w:rFonts</code>）</li>
-      <li>设置 <code>docDefaults</code> 全局默认字体</li>
-      <li>遍历并修改所有样式定义（Normal/Heading）</li>
-      <li>设置段落格式（行距、首行缩进）</li>
-      <li>清除主题幽灵残留</li>
-    </ol>
+    <ul class="feature-list">
+      <li><strong>✨ 软回车智能修复</strong>：自动将 Word 中的软回车拆分为标准硬段落，彻底解决段落破碎问题</li>
+      <li><strong>📄 页面尺寸预设</strong>：扁平化单选支持 A4 / Letter / B5 / A5</li>
+      <li><strong>🧠 离焦状态记忆</strong>：切换模块或关闭窗口时自动保存当前选项，下次进入无缝恢复</li>
+    </ul>
   </div>
 </div>
 
@@ -288,10 +261,10 @@
     <h3>📐 4种页边距预设</h3>
     <table>
       <tr><th>预设</th><th>上/下/左/右</th><th>适用</th></tr>
-      <tr><td>极限紧凑</td><td>0/0/0/0</td><td>屏幕阅读</td></tr>
-      <tr><td>左右紧凑</td><td>10/10/0/0</td><td>宽页利用</td></tr>
-      <tr><td>上下紧凑</td><td>0/0/10/10</td><td>长文档</td></tr>
-      <tr><td>对称装订</td><td>10/10/10/10</td><td>打印装订</td></tr>
+      <tr><td>极限紧凑</span><td>0/0/0/0</span><td>屏幕阅读</span></tr>
+      <tr><td>左右紧凑</span><td>10/10/0/0</span><td>宽页利用</span></tr>
+      <tr><td>上下紧凑</span><td>0/0/10/10</span><td>长文档</span></tr>
+      <tr><td>对称装订</span><td>10/10/10/10</span><td>打印装订</span></tr>
     </table>
   </div>
   <div class="card">
@@ -299,6 +272,43 @@
     <ul class="feature-list">
       <li>显示页码：勾选后在 PDF 页面底部显示页码</li>
       <li>完成后打开各产物目录：多文件夹场景下自动打开所有输出目录</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ==================== 依赖工具管理 ==================== -->
+<div id="tab-dependencies" class="tab-content">
+  <div class="card">
+    <h3>📦 依赖工具管理 <span class="version-tag">v1.17.2 增强</span></h3>
+    <p>帮助菜单 → 安装依赖工具 → 一键安装 Pandoc、Calibre、Node.js、Mermaid CLI。</p>
+    <div class="tip">
+      💡 <strong>离线安装支持</strong>：将 .msi 安装包放入 <code>resources/dependencies/</code> 目录，程序优先使用本地安装（无需网络）。
+    </div>
+  </div>
+  <div class="card">
+    <h3>🛠️ 安装方式</h3>
+    <table>
+      <tr><th>方式</th><th>说明</th></tr>
+      <tr><td>离线安装</span><td>将 .msi 文件放入 <code>resources/dependencies/</code>，自动识别并优先使用</span></tr>
+      <tr>}<td>网络安装</span><td>无离线包时自动回退到 winget 安装</span></tr>
+      <tr>}<td>后台模式</span><td>勾选「后台运行」后，安装任务在后台执行，完成后系统托盘通知</span></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h3>📁 支持的离线安装包</h3>
+    <table>
+      <tr><th>工具</th><th>文件名模式</th><th>说明</th></tr>
+      <tr><td>Pandoc</span><td><code>pandoc-*.msi</code> 或 <code>pandoc-*.exe</code></span><td>MD 转 EPUB 核心引擎</span></tr>
+      <tr>}<td>Calibre</span><td><code>calibre-*.msi</code> 或 <code>calibre-*.exe</code></span><td>EPUB 转 PDF/Word</span></tr>
+      <tr>}<td>Node.js</span><td><code>node-*.msi</code> 或 <code>node-*.exe</code></span><td>Mermaid CLI 运行环境</span></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h3>⌨️ 快捷键支持</h3>
+    <ul class="feature-list">
+      <li><strong>F5</strong>：刷新/重新检测工具状态</li>
+      <li><strong>Ctrl+Q</strong>：清空日志</li>
+      <li><strong>Ctrl+W</strong> / <strong>Esc</strong>：关闭对话框</li>
     </ul>
   </div>
 </div>
@@ -319,7 +329,7 @@
 │  工作流 · MD公式修复 · MD转EPUB · EPUB转PDF · EPUB转Word     │
 ├─────────────────────────────────────────────────────────────┤
 │                      <span style="color:#e67e22">resources/</span>                         │
-│  CSS模板 · MathJax引擎 · 图标                                │
+│  CSS模板 · MathJax引擎 · 图标 · dependencies（离线安装包）   │
 └─────────────────────────────────────────────────────────────┘</pre></div>
   </div>
   <div class="card">
@@ -330,12 +340,14 @@ EPUB_TOOLBOX/
 ├── <span style="color:#3498db">core/</span>
 │   ├── version.py / <span style="color:#e74c3c">config_keys.py</span> / base_module.py
 │   ├── theme_manager.py / css_manager.py / utils.py
-│   └── components/ (file_list, log_panel, dialogs, installer)
+│   └── components/ (file_list, log_panel, dialogs, <span style="color:#e74c3c">dependency_installer</span>)
 ├── <span style="color:#27ae60">modules/</span>
 │   ├── <span style="color:#27ae60">workflow/</span> (含 <span style="color:#e74c3c">pipeline_state.py</span>, monitor_panel)
 │   ├── md_repair/ / md2epub/ / epub2pdf/
 │   └── <span style="color:#e74c3c">epub2docx/</span>  ★ 含 XML 修复引擎 + 5种排版预设
-├── resources/ (CSS, MathJax, icons)
+├── <span style="color:#e67e22">resources/</span>
+│   ├── css/ / mathjax/ / icons/
+│   └── <span style="color:#e74c3c">dependencies/</span>  ★ 离线安装包目录（可选）
 └── build_folder.spec</pre></div>
   </div>
 </div>
@@ -344,31 +356,44 @@ EPUB_TOOLBOX/
 <div id="tab-quickref" class="tab-content">
   <div class="card">
     <h3>⌨️ 快捷键一览</h3>
-    <table>
-      <tr><th>快捷键</th><th>功能</th><th>作用域</th></tr>
-      <tr><td><kbd>Ctrl+0/1/2/3/4</kbd></td><td>切换模块</td><td>主窗口</td></tr>
-      <tr><td><kbd>Ctrl+Shift+D</kbd></td><td>开始处理</td><td>主窗口</td></tr>
-      <tr><td><kbd>Ctrl+Shift+M</kbd></td><td>打开监视面板</td><td>主窗口</td></tr>
-      <tr><td><kbd>Ctrl+Shift+L</kbd></td><td>批量预检摘要</td><td>主窗口</td></tr>
-      <tr><td><kbd>Ctrl+L</kbd></td><td>显示/隐藏日志面板</td><td>主窗口/面板</td></tr>
-      <tr><td><kbd>Ctrl+Q</kbd></td><td>清空当前窗口日志</td><td>主窗口/面板</td></tr>
-      <tr><td><kbd>Ctrl+Shift+Q</kbd></td><td>清空文件列表</td><td>主窗口</td></tr>
-      <tr><td><kbd>Ctrl+K</kbd></td><td>切换托盘模式</td><td>主窗口</td></tr>
-      <tr><td><kbd>Ctrl+Shift+K</kbd></td><td>从托盘唤醒</td><td>全局</td></tr>
-      <tr><td><kbd>Ctrl+W</kbd></td><td>退出/关闭预览/关闭面板</td><td>全局</td></tr>
-      <tr><td><kbd>Esc</kbd></td><td>关闭预览/关闭面板</td><td>预览/面板</td></tr>
-      <tr><td><kbd>Delete</kbd></td><td>删除选中文件/行</td><td>主窗口/面板</td></tr>
+    <table style="width:100%; border-collapse:collapse;">
+      <thead>
+        <tr><th>快捷键</th><th>功能</th><th>作用域</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><kbd>Ctrl+0/1/2/3/4</kbd></td><td>切换到工作流/MD转EPUB/EPUB转PDF/公式修复/EPUB转Word</td><td>主窗口</td></tr>
+        <tr><td><kbd>Ctrl+Shift+D</kbd></td><td>开始处理（当前模块）</td><td>主窗口</td></tr>
+        <tr><td><kbd>Ctrl+Shift+L</kbd></td><td>预检预览（默认第一个文件）</td><td>主窗口</td></tr>
+        <tr><td><kbd>Ctrl+Shift+M</kbd></td><td>打开监视面板（工作流模块）</td><td>主窗口</td></tr>
+        <tr><td><kbd>Ctrl+L</kbd></td><td>显示/隐藏日志面板</td><td>主窗口/面板</td></tr>
+        <tr><td><kbd>Ctrl+Q</kbd></td><td>清空当前窗口日志（主窗口/监视面板/依赖工具）</td><td>主窗口/面板/依赖工具</td></tr>
+        <tr><td><kbd>Ctrl+Shift+Q</kbd></td><td>清空当前模块文件列表</td><td>主窗口</td></tr>
+        <tr><td><kbd>Ctrl+K</kbd></td><td>切换托盘模式</td><td>主窗口</td></tr>
+        <tr><td><kbd>Ctrl+Shift+K</kbd></td><td>从系统托盘唤醒窗口并强制置顶</td><td>全局</td></tr>
+        <tr><td><kbd>Ctrl+W</kbd></td><td>退出软件 / 关闭修复预览 / 关闭监视面板 / 关闭对话框</td><td>全局</td></tr>
+        <tr><td><kbd>Ctrl+Left</kbd> / <kbd>Ctrl+Right</kbd></td><td>预览中查看上一处/下一处变更</td><td>预览</td></tr>
+        <tr><td><kbd>Esc</kbd></td><td>关闭修复预览 / 关闭监视面板 / 关闭对话框</td><td>预览/面板</td></tr>
+        <tr><td><kbd>Delete</kbd></td><td>删除文件列表中选中的文件 / 删除选中行</td><td>主窗口/面板</td></tr>
+        <tr><td><kbd>Ctrl+V</kbd></td><td>粘贴文件到监视面板</td><td>监视面板</td></tr>
+        <tr><td><kbd>F5</kbd></td><td>刷新依赖工具状态（重新检测）</td><td>依赖工具</td></tr>
+        <tr><td>双击托盘图标</td><td>从系统托盘唤醒窗口</td><td>托盘</td></tr>
+      </tbody>
     </table>
   </div>
   <div class="card">
     <h3>📝 版本历史</h3>
     <table>
-      <tr><th>版本</th><th>日期</th><th>核心变更</th></tr>
-      <tr><td>v1.17.1</td><td>2026.05.25</td><td>稳定性优化，修复预览，代码清理，文档更新</td></tr>
-      <tr><td>v1.17.0</td><td>2026.05.24</td><td>EPUB转Word 5种排版预设、工作流Word排版集成、UI优化</td></tr>
-      <tr><td>v1.16.0</td><td>2026.05.23</td><td>工作流Word集成、配置键常量重构、离焦自动保存、5种工作流模式</td></tr>
-      <tr><td>v1.15.0</td><td>2026.05.22</td><td>新增 EPUB转Word 模块（XML级软回车修复），全局修复"打开目录"Bug</td></tr>
-      <tr><td>v1.14.3</td><td>2026.05.17</td><td>PDF页码、Pandoc编码修复、完成后打开各产物目录</td></tr>
+      <thead>
+        <tr><th>版本</th><th>日期</th><th>核心变更</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>v1.17.2</strong></td><td>2026.05.29</td><td>依赖工具管理增强（离线安装、后台运行、F5刷新），快捷键扩展</td></tr>
+        <tr><td>v1.17.1</td><td>2026.05.25</td><td>稳定性优化，修复预览，代码清理，文档更新</td></tr>
+        <tr><td>v1.17.0</td><td>2026.05.24</td><td>EPUB转Word 5种排版预设、工作流Word排版集成、UI优化</td></tr>
+        <tr><td>v1.16.0</td><td>2026.05.23</td><td>工作流Word集成、配置键常量重构、离焦自动保存、5种工作流模式</td></tr>
+        <tr><td>v1.15.0</td><td>2026.05.22</td><td>新增 EPUB转Word 模块（XML级软回车修复），全局修复"打开目录"Bug</td></tr>
+        <tr><td>v1.14.3</td><td>2026.05.17</td><td>PDF页码、Pandoc编码修复、完成后打开各产物目录</td></tr>
+      </tbody>
     </table>
   </div>
   <div class="card">
