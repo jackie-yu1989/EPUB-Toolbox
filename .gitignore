@@ -30,7 +30,18 @@ build/
 standalone/
 upx/
 tests/
+
+# ============ 依赖安装包（不提交到 GitHub） ============
+# 这些文件体积大，用户可通过"帮助 → 安装依赖工具"自动下载
 resources/dependencies/
+*.msi
+*.exe
+*.dmg
+*.pkg
+*.iso
+*.zip
+*.7z
+*.tar.gz
 
 # 说明文件
 Readme/
